@@ -7,8 +7,8 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <!-- Firebase SDK compat (works everywhere including mobile) -->
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -413,7 +413,13 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
   <div class="card">
     <div class="card-title"><div class="card-title-left">Registrar vehículo</div></div>
     <div class="g4" style="margin-bottom:10px">
-      <div class="field"><label>Propietario *</label><select id="vh-cli"><option value="">— Seleccionar —</option></select></div>
+      <div class="field ac-wrap">
+        <label>Propietario *</label>
+        <input id="vh-cli-txt" placeholder="Buscar cliente por nombre o RUT..." autocomplete="off"
+          oninput="acSearchVHCli()" onfocus="acSearchVHCli()" onblur="setTimeout(()=>$('vh-cli-drop').style.display='none',180)">
+        <div id="vh-cli-drop" class="ac-dropdown" style="display:none"></div>
+        <input type="hidden" id="vh-cli-id">
+      </div>
       <div class="field"><label>Patente *</label><input id="vh-pat" placeholder="ABCD12" style="text-transform:uppercase"></div>
       <div class="field"><label>Marca</label><input id="vh-marca" placeholder="Toyota"></div>
       <div class="field"><label>Modelo</label><input id="vh-mod" placeholder="Corolla"></div>
@@ -1251,6 +1257,38 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
   </div>
 </div>
 
+<!-- MODAL AGREGAR VEHÍCULO RÁPIDO (desde clientes) -->
+<div id="modal-vh-rapido" class="modal-overlay" style="display:none" onclick="if(event.target===this)cerrarVHRapido()">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-hdr">
+      <h3>🚗 Agregar vehículo — <span id="vh-rapido-cli-nom" style="color:var(--accent2)"></span></h3>
+      <button class="btn btn-ghost btn-sm" onclick="cerrarVHRapido()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="vh-rapido-cli-id">
+      <div class="g3" style="margin-bottom:10px">
+        <div class="field"><label>Patente *</label><input id="vhr-pat" placeholder="ABCD12" style="text-transform:uppercase"></div>
+        <div class="field"><label>Marca</label><input id="vhr-marca" placeholder="Toyota"></div>
+        <div class="field"><label>Modelo</label><input id="vhr-mod" placeholder="Corolla"></div>
+        <div class="field"><label>Año</label><input id="vhr-anio" type="number" placeholder="2020"></div>
+        <div class="field"><label>Color</label><input id="vhr-col" placeholder="Blanco"></div>
+        <div class="field"><label>Kilometraje</label><input id="vhr-km" type="number" placeholder="0"></div>
+        <div class="field"><label>Combustible</label>
+          <select id="vhr-comb" style="padding:8px 11px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);outline:none">
+            <option>Bencina</option><option>Diésel</option><option>Híbrido</option><option>Eléctrico</option><option>GNC</option>
+          </select>
+        </div>
+        <div class="field"><label>VIN / Motor</label><input id="vhr-vin" placeholder="Opcional"></div>
+      </div>
+      <div class="field"><label>Observaciones</label><textarea id="vhr-obs" placeholder="Estado, notas..." style="min-height:50px"></textarea></div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn btn-ghost btn-sm" onclick="cerrarVHRapido()">Omitir por ahora</button>
+      <button class="btn btn-primary" onclick="guardarVHRapido()">🚗 Guardar vehículo</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL EDITAR CLIENTE -->
 <div id="modal-cli" class="modal-overlay" style="display:none" onclick="if(event.target===this)cerrarEditCli()">
   <div class="modal" style="max-width:520px">
@@ -1602,7 +1640,7 @@ function nav(id,btn){
     agenda:()=>{initAgenda();},
     dashboard:renderDashboard,
     clientes:renderClientes,
-    vehiculos:()=>{poblarSel('vh-cli',DB.clientes,'nombre');renderVehiculos();},
+    vehiculos:()=>{renderVehiculos();},
     inventario:()=>{llenarSelectsCat();renderInventario();},
     mecanicos:renderMecanicos,
     cotizaciones:()=>{poblarSelsCot();renderCots();},
@@ -1971,14 +2009,19 @@ function getTotal(ctx){return calcTotales(ctx).total;}
 // DASHBOARD
 // ══════════════════════════════════════════════════
 function renderDashboard(){
+  const mesActual=today().slice(0,7);
   const ingTotal=DB.ventas.reduce((s,v)=>s+v.total,0);
   const gasTotal=DB.gastos.reduce((s,g)=>s+g.monto,0);
+  const ingMes=DB.ventas.filter(v=>(v.fecha||'').slice(0,7)===mesActual).reduce((s,v)=>s+v.total,0);
+  const gasMes=DB.gastos.filter(g=>(g.fecha||'').slice(0,7)===mesActual).reduce((s,g)=>s+g.monto,0);
+  const utilMes=ingMes-gasMes;
   const cotPend=DB.cotizaciones.filter(c=>c.estado==='Pendiente').length;
   const otActivas=DB.ordenes.filter(o=>o.estado!=='Entregado').length;
+  const mesNom=new Date().toLocaleDateString('es-CL',{month:'long'});
 
   $('stats-bar').innerHTML=`
-    <div class="stat"><div class="stat-lbl">Ingresos totales</div><div class="stat-val">${fmt(ingTotal)}</div><div class="stat-sub">acumulado ventas</div></div>
-    <div class="stat"><div class="stat-lbl">Utilidad</div><div class="stat-val" style="color:${ingTotal-gasTotal>=0?'var(--green)':'var(--red)'}">${fmt(ingTotal-gasTotal)}</div><div class="stat-sub">ingresos − gastos</div></div>
+    <div class="stat"><div class="stat-lbl">Ingresos ${mesNom}</div><div class="stat-val">${fmt(ingMes)}</div><div class="stat-sub">total acum. ${fmt(ingTotal)}</div></div>
+    <div class="stat"><div class="stat-lbl">Utilidad ${mesNom}</div><div class="stat-val" style="color:${utilMes>=0?'var(--green)':'var(--red)'}">${fmt(utilMes)}</div><div class="stat-sub">acum. ${fmt(ingTotal-gasTotal)}</div></div>
     <div class="stat" style="cursor:pointer" onclick="nav('creditos',null)"><div class="stat-lbl">Por cobrar</div><div class="stat-val" style="color:var(--red)">${fmt(DB.creditos.filter(c=>c.estado!=='Pagado').reduce((s,c)=>s+c.saldo,0))}</div><div class="stat-sub">${DB.creditos.filter(c=>c.estado!=='Pagado').length} crédito${DB.creditos.filter(c=>c.estado!=='Pagado').length!==1?'s':''} activos</div></div>
     <div class="stat"><div class="stat-lbl">Órdenes activas</div><div class="stat-val">${otActivas}</div><div class="stat-sub">en curso</div></div>
     <div class="stat"><div class="stat-lbl">Clientes</div><div class="stat-val">${DB.clientes.length}</div><div class="stat-sub">${DB.vehiculos.length} vehículos</div></div>`;
@@ -2071,9 +2114,12 @@ function renderDobleChart(containerId,data1,data2){
 function guardarCliente(){
   const nom=$('c-nom').value.trim(),rut=$('c-rut').value.trim();
   if(!nom||!rut){toast('Nombre y RUT son obligatorios','err');return;}
-  DB.clientes.push({id:uid(),nombre:nom,rut,tel:$('c-tel').value.trim(),email:$('c-email').value.trim(),
+  const newId=uid();
+  DB.clientes.push({id:newId,nombre:nom,rut,tel:$('c-tel').value.trim(),email:$('c-email').value.trim(),
     dir:$('c-dir').value.trim(),origen:$('c-origen').value,obs:$('c-obs').value.trim(),creado:new Date().toISOString()});
   save();renderClientes();limpiarC();toast('Cliente guardado');
+  // Open vehicle modal
+  abrirModalVehiculoRapido(newId,nom);
 }
 function limpiarC(){['c-nom','c-rut','c-tel','c-email','c-dir','c-obs'].forEach(i=>{if($(i))$(i).value='';});}
 function eliminarCliente(id){
@@ -2107,8 +2153,11 @@ function renderClientes(){
 }
 function irVehiculo(cid){
   nav('vehiculos',null);
-  poblarSel('vh-cli',DB.clientes,'nombre');
-  $('vh-cli').value=cid;
+  const c=DB.clientes.find(x=>x.id===cid);
+  if(c&&$('vh-cli-txt')){
+    $('vh-cli-txt').value=c.nombre;
+    $('vh-cli-id').value=cid;
+  }
 }
 
 let _editCliId=null;
@@ -2154,7 +2203,8 @@ function guardarEditCli(){
 // VEHÍCULOS
 // ══════════════════════════════════════════════════
 function guardarVehiculo(){
-  const cid=$('vh-cli').value,pat=$('vh-pat').value.trim().toUpperCase();
+  const cid=$('vh-cli-id').value;
+  const pat=$('vh-pat').value.trim().toUpperCase();
   if(!cid){toast('Selecciona un propietario','err');return;}
   if(!pat){toast('La patente es obligatoria','err');return;}
   if(DB.vehiculos.find(v=>v.patente===pat)){toast('Ya existe un vehículo con esa patente','err');return;}
@@ -2169,6 +2219,8 @@ function guardarVehiculo(){
   save();renderVehiculos();limpiarVH();toast('Vehículo '+pat+' registrado');
 }
 function limpiarVH(){
+  if($('vh-cli-txt'))$('vh-cli-txt').value='';
+  if($('vh-cli-id'))$('vh-cli-id').value='';
   ['vh-pat','vh-marca','vh-mod','vh-anio','vh-col','vh-km','vh-vin','vh-obs'].forEach(i=>{if($(i))$(i).value='';});
   _vhImgs=[];renderVHImgsPreview();
 }
@@ -2781,9 +2833,13 @@ function renderOTs(){
   if(!lista.length){el.innerHTML='<div class="empty"><div class="empty-icon">🔧</div>No hay órdenes</div>';return;}
   el.innerHTML=lista.map(o=>{
     const venc=o.fechaEst&&o.fechaEst<hoy&&o.estado!=='Listo'&&o.estado!=='Entregado';
+    const entregado=o.estado==='Entregado';
+    const listo=o.estado==='Listo';
+    const rowBorder=venc?'border-left:3px solid var(--red)':entregado?'border-left:3px solid var(--green)':listo?'border-left:3px solid var(--teal)':'';
+    const rowBg=entregado?'background:var(--green-light)':'';
     return`
-    <div class="exp-row" style="${venc?'border-left:3px solid var(--red)':''}">
-      <div class="exp-hdr" onclick="toggle('ot-${o.folio}')">
+    <div class="exp-row" style="${rowBorder}${rowBg?';'+rowBg:''}">
+      <div class="exp-hdr" onclick="toggle('ot-${o.folio}')" style="${entregado?'background:var(--green-light)':''}">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span class="folio-tag">${o.folio}</span>
           <span style="font-weight:600">${o.clienteNombre}</span>
@@ -4448,6 +4504,9 @@ function buildDocOT(o,v){
   })()}
   <div class="total-box"><div><div class="lbl">Total de la orden${o.items.some(i=>i.iva)?' (IVA incluido)':''}</div></div><div class="amt">${fmt(o.total)}</div></div>
   ${o.obs?`<div class="obs-box"><strong>Observaciones:</strong> ${o.obs}</div>`:''}
+  <div style="background:#FDF3E0;border:1px solid #E0C070;border-radius:6px;padding:10px 14px;margin-top:10px;font-size:10px;color:#7A4F10">
+    <strong>⚠ IMPORTANTE:</strong> Los precios indicados en esta orden son referenciales y están sujetos a modificación según los repuestos y trabajos adicionales que se detecten durante el proceso de desarme y diagnóstico. Cualquier variación será informada al cliente antes de proceder.
+  </div>
   ${CFG.pieOT?`<div class="pie-txt">${CFG.pieOT}</div>`:''}
   <div class="firma-grid"><div class="firma-line">Firma del cliente</div><div class="firma-line">Firma / sello taller</div></div>
   ${CFG.notaLegal?`<div class="footer">${CFG.notaLegal}</div>`:''}
@@ -5085,6 +5144,64 @@ document.addEventListener('keydown',e=>{
 });
 
 // ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════
+// AUTOCOMPLETE PROPIETARIO — VEHÍCULOS
+// ══════════════════════════════════════════════════
+let _acVHCliIdx=-1;
+function acSearchVHCli(){
+  const q=($('vh-cli-txt')?.value||'').trim().toLowerCase();
+  const drop=$('vh-cli-drop');if(!drop)return;
+  $('vh-cli-id').value='';
+  if(!q){drop.style.display='none';return;}
+  const hits=DB.clientes.filter(c=>c.nombre.toLowerCase().includes(q)||c.rut.toLowerCase().includes(q)||(c.tel||'').includes(q)).slice(0,8);
+  if(!hits.length){drop.style.display='none';return;}
+  drop.innerHTML=hits.map(c=>`<div class="ac-item" onmousedown="acSelVHCli('${c.id}')">
+    <div><span class="ac-item-name">${c.nombre}</span><span style="font-size:10px;color:var(--text3);margin-left:6px">${c.rut}</span></div>
+    <div class="ac-item-meta"><span class="ac-badge-inv">${vehiculosDeCliente(c.id).length} veh.</span></div>
+  </div>`).join('');
+  drop.style.display='block';_acVHCliIdx=-1;
+}
+function acSelVHCli(id){
+  const c=DB.clientes.find(x=>x.id===id);if(!c)return;
+  $('vh-cli-txt').value=c.nombre;
+  $('vh-cli-id').value=c.id;
+  $('vh-cli-drop').style.display='none';
+  $('vh-pat').focus();
+}
+
+// ══════════════════════════════════════════════════
+// MODAL VEHÍCULO RÁPIDO (desde clientes)
+// ══════════════════════════════════════════════════
+function abrirModalVehiculoRapido(cliId, cliNom){
+  $('vh-rapido-cli-id').value=cliId;
+  $('vh-rapido-cli-nom').textContent=cliNom;
+  ['vhr-pat','vhr-marca','vhr-mod','vhr-anio','vhr-col','vhr-km','vhr-vin','vhr-obs'].forEach(i=>{if($(i))$(i).value='';});
+  if($('vhr-comb'))$('vhr-comb').value='Bencina';
+  $('modal-vh-rapido').style.display='flex';
+  document.body.style.overflow='hidden';
+  setTimeout(()=>$('vhr-pat')?.focus(),120);
+}
+function cerrarVHRapido(){
+  $('modal-vh-rapido').style.display='none';
+  document.body.style.overflow='';
+}
+function guardarVHRapido(){
+  const cid=$('vh-rapido-cli-id').value;
+  const pat=($('vhr-pat')?.value||'').trim().toUpperCase();
+  if(!pat){toast('La patente es obligatoria','err');return;}
+  if(DB.vehiculos.find(v=>v.patente===pat)){toast('Ya existe un vehículo con esa patente','err');return;}
+  const c=DB.clientes.find(x=>x.id===cid);if(!c)return;
+  DB.vehiculos.push({id:uid(),clienteId:cid,clienteNombre:c.nombre,clienteRut:c.rut,
+    patente:pat,marca:($('vhr-marca')?.value||'').trim(),modelo:($('vhr-mod')?.value||'').trim(),
+    anio:($('vhr-anio')?.value||'').trim(),color:($('vhr-col')?.value||'').trim(),
+    km:parseFloat($('vhr-km')?.value)||0,combustible:$('vhr-comb')?.value||'Bencina',
+    vin:($('vhr-vin')?.value||'').trim(),obs:($('vhr-obs')?.value||'').trim(),
+    imgs:[],histKm:[],creado:new Date().toISOString()});
+  save();renderVehiculos();renderClientes();
+  cerrarVHRapido();
+  toast(`Vehículo ${pat} registrado para ${c.nombre} ✓`);
+}
+
 // FIREBASE — Sincronización en la nube
 // ══════════════════════════════════════════════════
 let _fbDb=null, _fbSaveTimer=null, _fbListening=false;
@@ -5115,12 +5232,12 @@ async function fbInit(){
     }
 
     const firebaseConfig={
-      apiKey:"AIzaSyAQnh0OEpZJMNYoNijggTXOUjWUWlDDR_c",
-      authDomain:"resortes-puerto-montt-sys.firebaseapp.com",
-      projectId:"resortes-puerto-montt-sys",
-      storageBucket:"resortes-puerto-montt-sys.firebasestorage.app",
-      messagingSenderId:"60504280734",
-      appId:"1:60504280734:web:bbdbecc4e73e2d5f07f58f"
+      apiKey:"AIzaSyAKb_NtN4UIczN2px6MaVWr8Hj7swSor68",
+      authDomain:"sistema-resortes.firebaseapp.com",
+      projectId:"sistema-resortes",
+      storageBucket:"sistema-resortes.firebasestorage.app",
+      messagingSenderId:"284825132380",
+      appId:"1:284825132380:web:f4ef5fe10874dd282cf599"
     };
 
     // Initialize only once
