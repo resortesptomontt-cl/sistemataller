@@ -425,12 +425,28 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
   <div class="card">
     <div class="card-title"><div class="card-title-left">Registrar cliente</div></div>
     <div class="g3" style="margin-bottom:10px">
-      <div class="field"><label>Nombre completo *</label><input id="c-nom" placeholder="Juan Pérez García"></div>
-      <div class="field"><label>RUT *</label><input id="c-rut" placeholder="12.345.678-9"></div>
+      <div class="field"><label>Nombre / Razón social *</label><input id="c-nom" placeholder="Juan Pérez o Empresa Ltda."></div>
+      <div class="field"><label>RUT <small style="color:var(--text3);font-weight:400">opcional</small></label><input id="c-rut" placeholder="12.345.678-9"></div>
+      <div class="field"><label>Tipo</label>
+        <select id="c-tipo" onchange="onCliTipo()" style="padding:8px 11px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);outline:none">
+          <option value="persona">Persona natural</option>
+          <option value="empresa">Empresa</option>
+        </select>
+      </div>
       <div class="field"><label>Teléfono</label><input id="c-tel" placeholder="+56 9 1234 5678"></div>
       <div class="field"><label>Email</label><input id="c-email" type="email" placeholder="correo@mail.com"></div>
       <div class="field"><label>Dirección</label><input id="c-dir" placeholder="Calle 123, Ciudad"></div>
       <div class="field"><label>Cómo nos conoció</label><select id="c-origen"><option>Recomendación</option><option>Google</option><option>Redes Sociales</option><option>Publicidad</option><option>Otro</option></select></div>
+    </div>
+    <!-- Campos empresa -->
+    <div id="c-empresa-wrap" style="display:none;border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:10px;background:var(--surface2)">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:8px">👔 Datos de contacto en empresa</div>
+      <div class="g3">
+        <div class="field"><label>Nombre contacto</label><input id="c-contacto-nom" placeholder="María González"></div>
+        <div class="field"><label>Cargo</label><input id="c-contacto-cargo" placeholder="Gerente de operaciones"></div>
+        <div class="field"><label>Teléfono directo</label><input id="c-contacto-tel" placeholder="+56 9 ..."></div>
+        <div class="field"><label>Email directo</label><input id="c-contacto-email" type="email" placeholder="contacto@empresa.cl"></div>
+      </div>
     </div>
     <div class="field" style="margin-bottom:10px"><label>Observaciones</label><textarea id="c-obs" placeholder="Notas del cliente..."></textarea></div>
     <div style="display:flex;gap:6px"><button class="btn btn-primary" onclick="guardarCliente()">✓ Guardar</button><button class="btn" onclick="limpiarC()">↺ Limpiar</button></div>
@@ -460,7 +476,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
       <div class="field"><label>Año</label><input id="vh-anio" type="number" placeholder="2020"></div>
       <div class="field"><label>Color</label><input id="vh-col" placeholder="Blanco"></div>
       <div class="field"><label>Kilometraje actual</label><input id="vh-km" type="number" placeholder="0"></div>
-      <div class="field"><label>Combustible</label><select id="vh-comb"><option>Bencina</option><option>Diésel</option><option>Híbrido</option><option>Eléctrico</option><option>GNC</option></select></div>
+      <div class="field"><label>Combustible</label><select id="vh-comb"><option>Diésel</option><option>Bencina</option><option>Híbrido</option><option>Eléctrico</option><option>GNC</option></select></div>
       <div class="field"><label>VIN / Motor</label><input id="vh-vin" placeholder="Opcional"></div>
     </div>
     <div class="field" style="margin-bottom:10px"><label>Observaciones</label><textarea id="vh-obs" placeholder="Estado, notas..."></textarea></div>
@@ -1316,7 +1332,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
         <div class="field"><label>Kilometraje</label><input id="vhr-km" type="number" placeholder="0"></div>
         <div class="field"><label>Combustible</label>
           <select id="vhr-comb" style="padding:8px 11px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);outline:none">
-            <option>Bencina</option><option>Diésel</option><option>Híbrido</option><option>Eléctrico</option><option>GNC</option>
+            <option>Diésel</option><option>Bencina</option><option>Híbrido</option><option>Eléctrico</option><option>GNC</option>
           </select>
         </div>
         <div class="field"><label>VIN / Motor</label><input id="vhr-vin" placeholder="Opcional"></div>
@@ -1339,8 +1355,13 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
     </div>
     <div class="modal-body">
       <div class="g2" style="margin-bottom:10px">
-        <div class="field" style="grid-column:1/-1"><label>Nombre completo *</label><input id="ecli-nom" placeholder="Juan Pérez García"></div>
-        <div class="field"><label>RUT *</label><input id="ecli-rut" placeholder="12.345.678-9"></div>
+        <div class="field" style="grid-column:1/-1"><label>Nombre / Razón social *</label><input id="ecli-nom" placeholder="Juan Pérez o Empresa Ltda."></div>
+        <div class="field"><label>RUT <small style="color:var(--text3);font-weight:400">opcional</small></label><input id="ecli-rut" placeholder="12.345.678-9"></div>
+        <div class="field"><label>Tipo</label>
+          <select id="ecli-tipo" onchange="onEcliTipo()" style="padding:8px 11px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);outline:none">
+            <option value="persona">Persona natural</option><option value="empresa">Empresa</option>
+          </select>
+        </div>
         <div class="field"><label>Teléfono</label><input id="ecli-tel" placeholder="+56 9 1234 5678"></div>
         <div class="field"><label>Email</label><input id="ecli-email" type="email" placeholder="correo@mail.com"></div>
         <div class="field"><label>Dirección</label><input id="ecli-dir" placeholder="Calle 123, Ciudad"></div>
@@ -1349,7 +1370,16 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
             <option>Recomendación</option><option>Google</option><option>Redes Sociales</option><option>Publicidad</option><option>Otro</option>
           </select>
         </div>
-        <div class="field" style="grid-column:1/-1"><label>Observaciones</label><textarea id="ecli-obs" placeholder="Notas del cliente..." style="min-height:50px"></textarea></div>
+        <div class="field" style="grid-column:1/-1"><label>Observaciones</label><textarea id="ecli-obs" placeholder="Notas del cliente..." style="min-height:40px"></textarea></div>
+      </div>
+      <div id="ecli-empresa-wrap" style="display:none;border:1px solid var(--border);border-radius:var(--radius);padding:10px;background:var(--surface2)">
+        <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:8px">👔 Contacto en empresa</div>
+        <div class="g2">
+          <div class="field"><label>Nombre contacto</label><input id="ecli-contacto-nom" placeholder="María González"></div>
+          <div class="field"><label>Cargo</label><input id="ecli-contacto-cargo" placeholder="Gerente"></div>
+          <div class="field"><label>Teléfono directo</label><input id="ecli-contacto-tel" placeholder="+56 9 ..."></div>
+          <div class="field"><label>Email directo</label><input id="ecli-contacto-email" type="email" placeholder="contacto@empresa.cl"></div>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -2381,17 +2411,44 @@ function renderDobleChart(containerId,data1,data2){
 // ══════════════════════════════════════════════════
 // CLIENTES
 // ══════════════════════════════════════════════════
+function onCliTipo(){
+  const tipo=$('c-tipo')?.value;
+  const wrap=$('c-empresa-wrap');
+  if(wrap)wrap.style.display=tipo==='empresa'?'block':'none';
+}
 function guardarCliente(){
-  const nom=$('c-nom').value.trim(),rut=$('c-rut').value.trim();
-  if(!nom||!rut){toast('Nombre y RUT son obligatorios','err');return;}
+  const nom=$('c-nom').value.trim();
+  const rut=$('c-rut').value.trim();
+  if(!nom){toast('El nombre es obligatorio','err');return;}
+  // If no RUT, check for duplicate name
+  if(!rut){
+    const dupe=DB.clientes.find(c=>c.nombre.toLowerCase()===nom.toLowerCase());
+    if(dupe){
+      const ingresarRut=confirm(`Ya existe un cliente llamado "${nom}". Para diferenciarlo debes ingresar el RUT. ¿Deseas ingresarlo ahora?`);
+      if(ingresarRut){$('c-rut').focus();return;}
+    }
+  }
+  const tipo=$('c-tipo')?.value||'persona';
   const newId=uid();
-  DB.clientes.push({id:newId,nombre:nom,rut,tel:$('c-tel').value.trim(),email:$('c-email').value.trim(),
-    dir:$('c-dir').value.trim(),origen:$('c-origen').value,obs:$('c-obs').value.trim(),creado:new Date().toISOString()});
+  const cli={id:newId,nombre:nom,rut,tel:$('c-tel').value.trim(),
+    email:$('c-email').value.trim(),dir:$('c-dir').value.trim(),
+    origen:$('c-origen').value,obs:$('c-obs').value.trim(),
+    tipo,creado:new Date().toISOString()};
+  if(tipo==='empresa'){
+    cli.contactoNom=($('c-contacto-nom')?.value||'').trim();
+    cli.contactoCargo=($('c-contacto-cargo')?.value||'').trim();
+    cli.contactoTel=($('c-contacto-tel')?.value||'').trim();
+    cli.contactoEmail=($('c-contacto-email')?.value||'').trim();
+  }
+  DB.clientes.push(cli);
   save();renderClientes();limpiarC();toast('Cliente guardado');
-  // Open vehicle modal
   abrirModalVehiculoRapido(newId,nom);
 }
-function limpiarC(){['c-nom','c-rut','c-tel','c-email','c-dir','c-obs'].forEach(i=>{if($(i))$(i).value='';});}
+function limpiarC(){
+  ['c-nom','c-rut','c-tel','c-email','c-dir','c-obs','c-contacto-nom','c-contacto-cargo','c-contacto-tel','c-contacto-email'].forEach(i=>{if($(i))$(i).value='';});
+  if($('c-tipo'))$('c-tipo').value='persona';
+  if($('c-empresa-wrap'))$('c-empresa-wrap').style.display='none';
+}
 function eliminarCliente(id){
   if(!confirm('¿Eliminar cliente y sus vehículos?'))return;
   DB.clientes=DB.clientes.filter(c=>c.id!==id);
@@ -2431,6 +2488,11 @@ function irVehiculo(cid){
 }
 
 let _editCliId=null;
+function onEcliTipo(){
+  const tipo=$('ecli-tipo')?.value;
+  const wrap=$('ecli-empresa-wrap');
+  if(wrap)wrap.style.display=tipo==='empresa'?'block':'none';
+}
 function abrirEditCli(id){
   const c=DB.clientes.find(x=>x.id===id);if(!c)return;
   _editCliId=id;
@@ -2441,6 +2503,14 @@ function abrirEditCli(id){
   $('ecli-dir').value=c.dir||'';
   $('ecli-origen').value=c.origen||'Recomendación';
   $('ecli-obs').value=c.obs||'';
+  const tipo=c.tipo||'persona';
+  if($('ecli-tipo'))$('ecli-tipo').value=tipo;
+  const wrap=$('ecli-empresa-wrap');
+  if(wrap)wrap.style.display=tipo==='empresa'?'block':'none';
+  if($('ecli-contacto-nom'))$('ecli-contacto-nom').value=c.contactoNom||'';
+  if($('ecli-contacto-cargo'))$('ecli-contacto-cargo').value=c.contactoCargo||'';
+  if($('ecli-contacto-tel'))$('ecli-contacto-tel').value=c.contactoTel||'';
+  if($('ecli-contacto-email'))$('ecli-contacto-email').value=c.contactoEmail||'';
   $('modal-cli').style.display='flex';
   document.body.style.overflow='hidden';
   setTimeout(()=>$('ecli-nom').focus(),100);
@@ -2452,18 +2522,23 @@ function cerrarEditCli(){
 }
 function guardarEditCli(){
   const nom=$('ecli-nom').value.trim();
-  const rut=$('ecli-rut').value.trim();
   if(!nom){toast('El nombre es obligatorio','err');return;}
-  if(!rut){toast('El RUT es obligatorio','err');return;}
   const c=DB.clientes.find(x=>x.id===_editCliId);
   if(!c){cerrarEditCli();return;}
   c.nombre=nom;
-  c.rut=rut;
+  c.rut=$('ecli-rut').value.trim();
   c.tel=$('ecli-tel').value.trim();
   c.email=$('ecli-email').value.trim();
   c.dir=$('ecli-dir').value.trim();
   c.origen=$('ecli-origen').value;
   c.obs=$('ecli-obs').value.trim();
+  c.tipo=$('ecli-tipo')?.value||'persona';
+  if(c.tipo==='empresa'){
+    c.contactoNom=($('ecli-contacto-nom')?.value||'').trim();
+    c.contactoCargo=($('ecli-contacto-cargo')?.value||'').trim();
+    c.contactoTel=($('ecli-contacto-tel')?.value||'').trim();
+    c.contactoEmail=($('ecli-contacto-email')?.value||'').trim();
+  }
   c.modificado=new Date().toISOString();
   save();renderClientes();cerrarEditCli();
   toast(`"${nom}" actualizado correctamente`);
@@ -3857,6 +3932,9 @@ function eliminarCredito(id){
 }
 function renderCreditos(){
   const hoy=today();
+  const en5dias=new Date();en5dias.setDate(en5dias.getDate()+5);
+  const en5str=en5dias.toISOString().slice(0,10);
+
   // Sync estados
   DB.creditos.forEach(cr=>cr.estado=estadoCredito(cr));
 
@@ -3865,39 +3943,61 @@ function renderCreditos(){
   const totalDeuda=pendientes.reduce((s,c)=>s+c.saldo,0);
   const vencidos=DB.creditos.filter(c=>c.estado==='Vencido');
   const totalVenc=vencidos.reduce((s,c)=>s+c.saldo,0);
+  const proxVencer=DB.creditos.filter(c=>c.estado!=='Pagado'&&c.vcto&&c.vcto>hoy&&c.vcto<=en5str);
   const sc=$('cred-stats');
   if(sc)sc.innerHTML=`
     <div class="stat"><div class="stat-lbl">Deuda total pendiente</div><div class="stat-val" style="color:var(--red)">${fmt(totalDeuda)}</div><div class="stat-sub">${pendientes.length} crédito${pendientes.length!==1?'s':''} activos</div></div>
-    <div class="stat"><div class="stat-lbl">Créditos vencidos</div><div class="stat-val" style="color:var(--red)">${fmt(totalVenc)}</div><div class="stat-sub">${vencidos.length} sin pagar al vencimiento</div></div>
-    <div class="stat"><div class="stat-lbl">Créditos pagados</div><div class="stat-val" style="color:var(--green)">${DB.creditos.filter(c=>c.estado==='Pagado').length}</div><div class="stat-sub">cobros completados</div></div>
+    <div class="stat"><div class="stat-lbl">Créditos vencidos</div><div class="stat-val" style="color:var(--red)">${fmt(totalVenc)}</div><div class="stat-sub">${vencidos.length} sin pagar</div></div>
+    ${proxVencer.length?`<div class="stat" style="border:1px solid var(--amber);background:var(--amber-light)"><div class="stat-lbl" style="color:var(--amber)">⚠ Vencen en 5 días</div><div class="stat-val" style="color:var(--amber)">${proxVencer.length}</div><div class="stat-sub">${fmt(proxVencer.reduce((s,c)=>s+c.saldo,0))}</div></div>`:''}
     <div class="stat"><div class="stat-lbl">Total cobrado</div><div class="stat-val" style="color:var(--green)">${fmt(DB.creditos.reduce((s,c)=>s+(c.monto-c.saldo),0))}</div><div class="stat-sub">en abonos recibidos</div></div>`;
 
   const q=($('scr')?.value||'').toLowerCase();
   const est=$('scr-est')?.value||'';
-  let lista=DB.creditos;
+  let lista=[...DB.creditos];
   if(q)lista=lista.filter(c=>c.clienteNombre.toLowerCase().includes(q)||c.desc.toLowerCase().includes(q));
   if(est==='Vencido')lista=lista.filter(c=>c.estado==='Vencido');
   else if(est)lista=lista.filter(c=>c.estado===est);
+
+  // Sort: unpaid first by vcto (earliest first), then paid last
+  lista.sort((a,b)=>{
+    if(a.estado==='Pagado'&&b.estado!=='Pagado')return 1;
+    if(b.estado==='Pagado'&&a.estado!=='Pagado')return -1;
+    const va=a.vcto||'9999-99-99', vb=b.vcto||'9999-99-99';
+    if(va!==vb)return va>vb?1:-1;
+    return a.clienteNombre.localeCompare(b.clienteNombre);
+  });
 
   const el=$('lista-creditos');
   if(!lista.length){el.innerHTML='<div class="empty"><div class="empty-icon">💳</div>No hay créditos registrados</div>';return;}
 
   const estClass={Pendiente:'s-pendiente',Vencido:'s-vencido','Pagado parcial':'s-proceso',Pagado:'s-entregado'};
   el.innerHTML=lista.map(cr=>{
-    const pct=cr.monto>0?Math.round(((cr.monto-cr.saldo)/cr.monto)*100):0;
     const venc=cr.vcto&&cr.vcto<hoy&&cr.estado!=='Pagado';
+    const proxAlert=cr.vcto&&cr.vcto>hoy&&cr.vcto<=en5str&&cr.estado!=='Pagado';
+    const diasFalta=cr.vcto?Math.ceil((new Date(cr.vcto)-new Date(hoy))/(1000*60*60*24)):null;
+    const pct=cr.monto>0?Math.round(((cr.monto-cr.saldo)/cr.monto)*100):0;
+    const fmtF=d=>{if(!d)return'—';const[y,m,dd]=d.split('-');return`${dd}/${m}/${y}`;};
+    let rowStyle='';
+    if(venc)rowStyle='border-left:3px solid var(--red)';
+    else if(proxAlert)rowStyle='border-left:3px solid var(--amber)';
+    else if(cr.estado==='Pagado')rowStyle='border-left:3px solid var(--green)';
     return`
-    <div class="exp-row" style="${venc?'border-left:3px solid var(--red)':cr.estado==='Pagado'?'border-left:3px solid var(--green)':''}">
+    <div class="exp-row" style="${rowStyle}">
       <div class="exp-hdr" onclick="toggle('cr-${cr.id}')">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span style="font-weight:600">${cr.clienteNombre}</span>
-          <span style="font-size:11px;color:var(--text2)">${cr.clienteRut}</span>
+          <span style="font-size:11px;color:var(--text2)">${cr.clienteRut||''}</span>
           <span class="status ${estClass[cr.estado]||'s-pendiente'}">${cr.estado}</span>
           ${cr.ventaFolio?`<span class="folio-tag" style="font-size:10px">${cr.ventaFolio}</span>`:''}
-          ${venc?`<span style="font-size:10px;color:var(--red);font-weight:600">Vencido el ${cr.vcto}</span>`:''}
+          ${cr.vcto?`<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;
+            background:${venc?'var(--red-light)':proxAlert?'var(--amber-light)':'var(--surface2)'};
+            color:${venc?'var(--red)':proxAlert?'var(--amber)':'var(--text2)'}">
+            📅 ${fmtF(cr.vcto)}${venc?' · Vencido':(diasFalta!==null&&diasFalta<=5&&cr.estado!=='Pagado'?` · ${diasFalta}d`:'')}
+          </span>`:'<span style="font-size:11px;color:var(--text3)">Sin vencimiento</span>'}
+          ${proxAlert?`<span style="font-size:10px;font-weight:700;color:var(--amber);background:var(--amber-light);padding:2px 7px;border-radius:10px">⚠ Vence en ${diasFalta} día${diasFalta!==1?'s':''}</span>`:''}
         </div>
         <div style="text-align:right;flex-shrink:0">
-          <div style="font-size:10px;color:var(--text2);margin-bottom:2px">Saldo: <strong style="color:${cr.saldo>0?'var(--red)':'var(--green)'};font-family:'DM Mono',monospace">${fmt(cr.saldo)}</strong> / ${fmt(cr.monto)}</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:2px">Saldo: <strong style="color:${cr.saldo>0?'var(--red)':'var(--green)'};font-family:'DM Mono',monospace">${fmt(cr.saldo)}</strong> / ${fmt(cr.monto)}</div>
           <div style="width:120px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-left:auto">
             <div style="height:100%;width:${pct}%;background:${pct===100?'var(--green)':'var(--accent2)'};border-radius:3px;transition:width .3s"></div>
           </div>
@@ -3905,13 +4005,12 @@ function renderCreditos(){
         </div>
       </div>
       <div class="exp-body" id="cr-${cr.id}">
-        <div style="font-size:12px;margin:10px 0;color:var(--text2)">📋 ${cr.desc}${cr.fecha?' · Otorgado: '+cr.fecha:''}${cr.vcto?' · Vence: '+cr.vcto:''}</div>
+        <div style="font-size:12px;margin:10px 0;color:var(--text2)">📋 ${cr.desc}${cr.fecha?' · Otorgado: '+fmtF(cr.fecha):''}${cr.vcto?' · Vence: '+fmtF(cr.vcto):''}</div>
         ${cr.abonos.length?`
           <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text2);margin-bottom:6px">Historial de abonos</div>
           <div class="tw" style="margin-bottom:12px"><table><thead><tr><th>Fecha</th><th>Observación</th><th class="tr">Monto abonado</th></tr></thead><tbody>
             ${cr.abonos.map(a=>`<tr>
-              <td>${a.fecha||'—'}</td>
-              <td>${a.obs||'—'}</td>
+              <td>${fmtF(a.fecha)||'—'}</td><td>${a.obs||'—'}</td>
               <td class="tr" style="font-family:'DM Mono',monospace;font-weight:600;color:var(--green)">${fmt(a.monto)}</td>
             </tr>`).join('')}
           </tbody></table></div>`:'<div style="font-size:12px;color:var(--text3);margin-bottom:10px">Sin abonos registrados aún</div>'}
@@ -5450,7 +5549,7 @@ function abrirModalVehiculoRapido(cliId, cliNom){
   $('vh-rapido-cli-id').value=cliId;
   $('vh-rapido-cli-nom').textContent=cliNom;
   ['vhr-pat','vhr-marca','vhr-mod','vhr-anio','vhr-col','vhr-km','vhr-vin','vhr-obs'].forEach(i=>{if($(i))$(i).value='';});
-  if($('vhr-comb'))$('vhr-comb').value='Bencina';
+  if($('vhr-comb'))$('vhr-comb').value='Diésel';
   $('modal-vh-rapido').style.display='flex';
   document.body.style.overflow='hidden';
   setTimeout(()=>$('vhr-pat')?.focus(),120);
@@ -5468,7 +5567,7 @@ function guardarVHRapido(){
   DB.vehiculos.push({id:uid(),clienteId:cid,clienteNombre:c.nombre,clienteRut:c.rut,
     patente:pat,marca:($('vhr-marca')?.value||'').trim(),modelo:($('vhr-mod')?.value||'').trim(),
     anio:($('vhr-anio')?.value||'').trim(),color:($('vhr-col')?.value||'').trim(),
-    km:parseFloat($('vhr-km')?.value)||0,combustible:$('vhr-comb')?.value||'Bencina',
+    km:parseFloat($('vhr-km')?.value)||0,combustible:$('vhr-comb')?.value||'Diésel',
     vin:($('vhr-vin')?.value||'').trim(),obs:($('vhr-obs')?.value||'').trim(),
     imgs:[],histKm:[],creado:new Date().toISOString()});
   save();renderVehiculos();renderClientes();
