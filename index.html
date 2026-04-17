@@ -666,6 +666,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
     <div class="card-title"><div class="card-title-left">Registrar mecánico</div></div>
     <div class="g3" style="margin-bottom:10px">
       <div class="field"><label>Nombre completo *</label><input id="m-nom" placeholder="Juan Pérez"></div>
+      <div class="field"><label>RUT *</label><input id="m-rut" placeholder="12.345.678-9"></div>
       <div class="field"><label>Especialidad</label><input id="m-esp" placeholder="Mecánica general, electricidad..."></div>
       <div class="field"><label>Teléfono</label><input id="m-tel" placeholder="+56 9..."></div>
       <div class="field"><label>Email</label><input id="m-email" placeholder="mecánico@taller.cl"></div>
@@ -797,6 +798,25 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
     <div id="ot-totales-wrap" style="margin-top:10px"></div>
     <hr>
     <div class="field" style="margin-bottom:10px"><label>Trabajo realizado / observaciones</label><textarea id="ot-obs" placeholder="Descripción del trabajo realizado..."></textarea></div>
+    <!-- Factura / documento tributario -->
+    <div style="background:var(--surface2);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px;border:1px solid var(--border)">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:8px">🧾 Documento tributario <small style="font-weight:400;text-transform:none">(opcional)</small></div>
+      <div class="g4">
+        <div class="field"><label>Tipo documento</label>
+          <select id="ot-doc-tipo" style="padding:8px 11px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);outline:none">
+            <option value="">— Sin documento —</option>
+            <option value="Boleta">Boleta</option>
+            <option value="Boleta electrónica">Boleta electrónica</option>
+            <option value="Factura">Factura</option>
+            <option value="Factura electrónica">Factura electrónica</option>
+            <option value="Nota de crédito">Nota de crédito</option>
+          </select>
+        </div>
+        <div class="field"><label>N° folio / documento</label><input id="ot-doc-folio" placeholder="Ej: 000123"></div>
+        <div class="field"><label>Fecha emisión</label><input id="ot-doc-fecha" type="date"></div>
+        <div class="field"><label>Monto facturado ($)</label><input id="ot-doc-monto" type="number" placeholder="Dejar vacío = igual a total OT" min="0"></div>
+      </div>
+    </div>
     <div class="sec-label" style="margin-bottom:6px">📷 Fotos de evidencia <small style="color:var(--text3);font-weight:400">antes / durante / después de la reparación</small></div>
     <div id="ot-imgs-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"></div>
     <label style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border:1px dashed var(--border2);border-radius:var(--radius);font-size:12px;color:var(--text2);background:var(--bg);margin-bottom:12px">
@@ -878,6 +898,25 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
     </div>
     <hr>
     <div class="field" style="margin-bottom:10px"><label>Observaciones</label><textarea id="v-obs" placeholder="Descripción del servicio..."></textarea></div>
+    <!-- Factura / documento tributario -->
+    <div style="background:var(--surface2);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px;border:1px solid var(--border)">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:8px">🧾 Documento tributario <small style="font-weight:400;text-transform:none">(opcional)</small></div>
+      <div class="g4">
+        <div class="field"><label>Tipo documento</label>
+          <select id="v-doc-tipo" style="padding:8px 11px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);outline:none">
+            <option value="">— Sin documento —</option>
+            <option value="Boleta">Boleta</option>
+            <option value="Boleta electrónica">Boleta electrónica</option>
+            <option value="Factura">Factura</option>
+            <option value="Factura electrónica">Factura electrónica</option>
+            <option value="Nota de crédito">Nota de crédito</option>
+          </select>
+        </div>
+        <div class="field"><label>N° folio / documento</label><input id="v-doc-folio" placeholder="Ej: 000123"></div>
+        <div class="field"><label>Fecha emisión</label><input id="v-doc-fecha" type="date"></div>
+        <div class="field"><label>Monto facturado ($)</label><input id="v-doc-monto" type="number" placeholder="Dejar vacío = igual a total venta" min="0"></div>
+      </div>
+    </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">
       <button class="btn btn-primary" onclick="guardarVenta()">✓ Confirmar venta</button>
       <button class="btn" onclick="limpiarV()">↺ Limpiar</button>
@@ -1671,6 +1710,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
     <div class="modal-body">
       <div class="g2" style="margin-bottom:10px">
         <div class="field" style="grid-column:1/-1"><label>Nombre completo *</label><input id="em-nom" placeholder="Juan Pérez"></div>
+        <div class="field"><label>RUT *</label><input id="em-rut" placeholder="12.345.678-9"></div>
         <div class="field"><label>Especialidad</label><input id="em-esp" placeholder="Mecánica general..."></div>
         <div class="field"><label>Teléfono</label><input id="em-tel" placeholder="+56 9..."></div>
         <div class="field"><label>Email</label><input id="em-email" placeholder="correo@taller.cl"></div>
@@ -3144,7 +3184,8 @@ function doImport(){
 function guardarMecanico(){
   const nom=$('m-nom').value.trim();
   if(!nom){toast('El nombre es obligatorio','err');return;}
-  DB.mecanicos.push({id:uid(),nombre:nom,especialidad:$('m-esp').value.trim(),
+  DB.mecanicos.push({id:uid(),nombre:nom,rut:$('m-rut').value.trim(),
+    especialidad:$('m-esp').value.trim(),
     tel:$('m-tel').value.trim(),email:$('m-email').value.trim(),
     estado:$('m-est').value,
     sueldoBase:parseFloat($('m-sueldo').value)||0,
@@ -3154,7 +3195,7 @@ function guardarMecanico(){
   save();renderMecanicos();limpiarM();toast('Mecánico registrado');
 }
 function limpiarM(){
-  ['m-nom','m-esp','m-tel','m-email','m-sueldo','m-contrato'].forEach(i=>{if($(i))$(i).value='';});
+  ['m-nom','m-rut','m-esp','m-tel','m-email','m-sueldo','m-contrato'].forEach(i=>{if($(i))$(i).value='';});
   if($('m-comision'))$('m-comision').value='2.8';
 }
 function eliminarMecanico(id){
@@ -3165,9 +3206,10 @@ function eliminarMecanico(id){
 function renderMecanicos(){
   const el=$('lista-mecanicos');
   if(!DB.mecanicos.length){el.innerHTML='<div class="empty"><div class="empty-icon">👷</div>No hay mecánicos</div>';return;}
-  el.innerHTML='<div class="tw"><table><thead><tr><th>Nombre</th><th>Especialidad</th><th>Sueldo base</th><th>Comisión OT</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>'+
+  el.innerHTML='<div class="tw"><table><thead><tr><th>Nombre</th><th>RUT</th><th>Especialidad</th><th>Sueldo base</th><th>Comisión OT</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>'+
     DB.mecanicos.map(m=>`<tr>
       <td style="font-weight:500">${m.nombre}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:11px">${m.rut||'—'}</td>
       <td>${m.especialidad||'—'}</td>
       <td style="font-family:'DM Mono',monospace">${m.sueldoBase?fmt(m.sueldoBase):'—'}</td>
       <td style="font-family:'DM Mono',monospace">${m.comisionPct||2.8}%</td>
@@ -3280,6 +3322,7 @@ function renderCots(){
 // ══════════════════════════════════════════════════
 // ÓRDENES DE TRABAJO
 // ══════════════════════════════════════════════════
+function poblarSelsCot(){setToday('cot-fecha');}
 function poblarSelsOT(){
   initMecPicker('ot',[]);
   setToday('ot-fecha-in');
@@ -3317,6 +3360,7 @@ function guardarOT(){
   if(v&&km>v.km){v.km=km;}
   const folio=$('ot-folio').value||'OT-'+String(DB.ordenes.length+1).padStart(4,'0');
   const total=calcTotales('ot').total;
+  const docTipo=$('ot-doc-tipo')?.value||'';
   DB.ordenes.unshift({folio,fechaIn:$('ot-fecha-in').value,fechaEst:$('ot-fecha-est').value,
     clienteId:c?.id||null,clienteNombre:c?c.nombre:cliNombre,
     clienteRut:c?.rut||'',tel:c?.tel||'',
@@ -3327,6 +3371,10 @@ function guardarOT(){
     km,diag:$('ot-diag').value.trim(),obs:$('ot-obs').value.trim(),
     items:[...lines.ot],total,estado:$('ot-estado').value,
     imgs:[..._otImgs],
+    docTipo,
+    docFolio:docTipo?($('ot-doc-folio')?.value||'').trim():'',
+    docFecha:docTipo?($('ot-doc-fecha')?.value||''):'',
+    docMonto:docTipo?(parseFloat($('ot-doc-monto')?.value)||total):0,
     creado:new Date().toISOString()});
   save();limpiarOT();renderOTs();renderDashboard();
   toast(`Orden ${folio} creada`);
@@ -3335,7 +3383,8 @@ function limpiarOT(){
   lines.ot=[];
   if($('ot-cli-txt'))$('ot-cli-txt').value='';
   if($('ot-cli-id'))$('ot-cli-id').value='';
-  ['ot-veh','ot-fecha-est','ot-km','ot-diag','ot-obs'].forEach(i=>{if($(i))$(i).value='';});
+  ['ot-veh','ot-fecha-est','ot-km','ot-diag','ot-obs','ot-doc-folio','ot-doc-fecha','ot-doc-monto'].forEach(i=>{if($(i))$(i).value='';});
+  if($('ot-doc-tipo'))$('ot-doc-tipo').value='';
   if($('ot-prod-txt'))$('ot-prod-txt').value='';
   if($('ot-prod-id'))$('ot-prod-id').value='';
   if($('ot-pu'))$('ot-pu').value='';
@@ -3379,6 +3428,7 @@ function renderOTs(){
           <span class="status ${venc?'s-vencido':statusClass(o.estado)}">${venc?'Vencido':o.estado}</span>
           ${o.mecanico?`<span class="badge b-blue">${o.mecanico}</span>`:''}
           ${o.cotizacionOrigen?`<span class="folio-cot" style="font-size:10px">desde ${o.cotizacionOrigen}</span>`:''}
+          ${o.docTipo?`<span style="font-size:10px;font-weight:600;color:var(--teal);background:var(--teal-light);padding:2px 7px;border-radius:10px">🧾 ${o.docTipo}${o.docFolio?' N°'+o.docFolio:''}</span>`:''}
         </div>
         <div style="text-align:right;flex-shrink:0">
           <div style="font-weight:700;font-size:15px;font-family:'DM Mono',monospace">${fmt(o.total)}</div>
@@ -3390,6 +3440,12 @@ function renderOTs(){
         ${o.items.length?`<div class="tw" style="margin-bottom:10px"><table><thead><tr><th>Producto</th><th>Cant.</th><th>Unidad</th><th>P.Unit.</th><th class="tr">Subtotal</th></tr></thead>
           <tbody>${o.items.map(i=>`<tr><td style="font-weight:500">${i.nombre}</td><td>${i.qty}</td><td>${i.unidad}</td><td style="font-family:'DM Mono',monospace">${fmt(i.pu)}</td><td class="tr" style="font-family:'DM Mono',monospace;font-weight:600">${fmt(i.sub)}</td></tr>`).join('')}</tbody></table></div>`:''}
         ${o.obs?`<div style="font-size:12px;color:var(--text2);margin-bottom:10px">📋 ${o.obs}</div>`:''}
+        ${o.docTipo?`<div style="background:var(--teal-light);border:1px solid var(--teal);border-radius:var(--radius);padding:8px 14px;font-size:12px;margin-bottom:10px;display:flex;gap:16px;flex-wrap:wrap">
+          <span>🧾 <strong>${o.docTipo}</strong></span>
+          ${o.docFolio?`<span>N° <strong>${o.docFolio}</strong></span>`:''}
+          ${o.docFecha?`<span>Emitido: <strong>${o.docFecha}</strong></span>`:''}
+          <span>Monto: <strong style="font-family:'DM Mono',monospace">${fmt(o.docMonto||o.total)}</strong></span>
+        </div>`:''}
         ${(o.imgs&&o.imgs.length)?`
           <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">📷 Fotos de evidencia (${o.imgs.length})</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
@@ -3760,13 +3816,19 @@ function guardarVenta(){
   const {total,desc}=calcTotales('v');
   const fpago=$('v-fpago')?.value||'Contado';
   const vcto=$('v-fecha-vcto')?.value||'';
+  const docTipo=$('v-doc-tipo')?.value||'';
   const folio=$('v-folio').value||'VT-'+String(DB.ventas.length+1).padStart(4,'0');
   DB.ventas.unshift({folio,fecha:$('v-fecha').value,
     clienteId:c?.id||null,clienteNombre:c?c.nombre:cliNombre,
     clienteRut:c?.rut||'',tel:c?.tel||'',
     vehiculoId:v?.id||null,patente:v?.patente||'',marca:v?.marca||'',modelo:v?.modelo||'',
     items:[...lines.v],descuento:desc,total,fpago,
-    obs:$('v-obs').value.trim(),creado:new Date().toISOString()});
+    obs:$('v-obs').value.trim(),
+    docTipo,
+    docFolio:docTipo?($('v-doc-folio')?.value||'').trim():'',
+    docFecha:docTipo?($('v-doc-fecha')?.value||''):'',
+    docMonto:docTipo?(parseFloat($('v-doc-monto')?.value)||total):0,
+    creado:new Date().toISOString()});
   lines.v.forEach(l=>{
     if(l.libre)return;
     const p=DB.inventario.find(x=>x.id===l.pid);
@@ -3789,7 +3851,8 @@ function limpiarV(){
   if($('v-prod-txt'))$('v-prod-txt').value='';
   if($('v-prod-id'))$('v-prod-id').value='';
   if($('v-pu'))$('v-pu').value='';
-  ['v-veh','v-obs'].forEach(i=>{if($(i))$(i).value='';});
+  ['v-veh','v-obs','v-doc-folio','v-doc-fecha','v-doc-monto'].forEach(i=>{if($(i))$(i).value='';});
+  if($('v-doc-tipo'))$('v-doc-tipo').value='';
   if($('v-fecha'))$('v-fecha').value='';
   if($('v-desc'))$('v-desc').value=0;
   if($('v-fpago'))$('v-fpago').value='Contado';
@@ -4016,7 +4079,8 @@ function renderVentas(){
           ${v.patente?`<span class="badge b-orange">${v.patente}</span>`:''}
           ${v.otOrigen?`<span class="folio-tag" style="font-size:10px">OT: ${v.otOrigen}</span>`:''}
           ${v.cotOrigen?`<span class="folio-cot" style="font-size:10px">COT: ${v.cotOrigen}</span>`:''}
-          ${v.fpago?`<span class="badge ${v.fpago==='Crédito'?'b-red':v.fpago==='Transferencia'?'b-teal':'b-gray'}">${v.fpago}</span>`:''}        </div>
+          ${v.fpago?`<span class="badge ${v.fpago==='Crédito'?'b-red':v.fpago==='Transferencia'?'b-teal':'b-gray'}">${v.fpago}</span>`:''}
+          ${v.docTipo?`<span style="font-size:10px;font-weight:600;color:var(--teal);background:var(--teal-light);padding:2px 7px;border-radius:10px">🧾 ${v.docTipo}${v.docFolio?' N°'+v.docFolio:''}</span>`:''}
         <div style="text-align:right;flex-shrink:0">
           <div style="font-weight:700;font-size:15px;font-family:'DM Mono',monospace">${fmt(v.total)}</div>
           <div style="font-size:10px;color:var(--text2)">${v.fecha||''} · ${v.items.length} ítem${v.items.length!==1?'s':''}</div>
@@ -4028,7 +4092,12 @@ function renderVentas(){
           <tbody>${v.items.map(i=>`<tr><td style="font-weight:500">${i.nombre}</td><td>${i.qty}</td><td>${i.unidad}</td><td style="font-family:'DM Mono',monospace">${fmt(i.pu)}</td><td class="tr" style="font-family:'DM Mono',monospace;font-weight:600">${fmt(i.sub)}</td></tr>`).join('')}</tbody></table></div>
         ${v.descuento?`<div style="font-size:12px;color:var(--text2);margin-bottom:6px">Descuento aplicado: ${fmt(v.descuento)}</div>`:''}
         ${v.obs?`<div style="font-size:12px;color:var(--text2);margin-bottom:10px">📋 ${v.obs}</div>`:''}
-        <div style="display:flex;justify-content:flex-end;gap:6px">
+        ${v.docTipo?`<div style="background:var(--teal-light);border:1px solid var(--teal);border-radius:var(--radius);padding:8px 14px;font-size:12px;margin-bottom:10px;display:flex;gap:16px;flex-wrap:wrap">
+          <span>🧾 <strong>${v.docTipo}</strong></span>
+          ${v.docFolio?`<span>N° <strong>${v.docFolio}</strong></span>`:''}
+          ${v.docFecha?`<span>Emitido: <strong>${v.docFecha}</strong></span>`:''}
+          <span>Monto: <strong style="font-family:'DM Mono',monospace">${fmt(v.docMonto||v.total)}</strong></span>
+        </div>`:''}
           <button class="btn btn-xs" onclick="event.stopPropagation();imprimirVenta('${v.folio}')">🖨 PDF</button>
           <button class="btn btn-xs btn-red" onclick="event.stopPropagation();eliminarVenta('${v.folio}')">🗑 Eliminar</button>
         </div>
@@ -4436,6 +4505,7 @@ function abrirEditMec(id){
   const m=DB.mecanicos.find(x=>x.id===id);if(!m)return;
   _editMecId=id;
   $('em-nom').value=m.nombre||'';
+  if($('em-rut'))$('em-rut').value=m.rut||'';
   $('em-esp').value=m.especialidad||'';
   $('em-tel').value=m.tel||'';
   $('em-email').value=m.email||'';
@@ -4458,6 +4528,7 @@ function guardarEditMec(){
   const m=DB.mecanicos.find(x=>x.id===_editMecId);
   if(!m){cerrarEditMec();return;}
   m.nombre=nom;
+  m.rut=($('em-rut')?.value||'').trim();
   m.especialidad=$('em-esp').value.trim();
   m.tel=$('em-tel').value.trim();
   m.email=$('em-email').value.trim();
@@ -4692,6 +4763,7 @@ function buildComprobanteHTML(lista,forPrint){
           <td>
             <div class="rt">
               <strong>${a.mecanicoNombre}</strong>
+              ${a.mecanicoRut?`<span style="font-size:10px;color:#555;margin-left:6px">RUT: ${a.mecanicoRut}</span>`:''}
               &nbsp;<span class="tipo ${a.tipo==='Anticipo'?'ta':a.tipo==='Préstamo'?'tp':a.tipo==='Descuento'?'td':'to'}">${a.tipo}</span>
               &nbsp;<span style="font-size:10px;color:#888">${fmtF(a.fecha)}</span>
               ${a.desc?`<br><span style="font-size:10px;color:#666">${a.desc}</span>`:''}
@@ -4703,7 +4775,7 @@ function buildComprobanteHTML(lista,forPrint){
               </div>
               <div style="margin-left:10px">
                 <div class="firma-lbl">RUT</div>
-                <div class="rut-line"></div>
+                <div class="rut-line" style="display:flex;align-items:flex-end;padding-bottom:2px;font-size:11px;font-weight:600;color:#333;min-width:110px">${a.mecanicoRut||''}</div>
               </div>
               <div style="margin-left:16px;text-align:right">
                 <div class="firma-lbl">Monto recibido</div>
@@ -5072,6 +5144,12 @@ function buildDocOT(o,v){
   })()}
   <div class="total-box"><div><div class="lbl">Total de la orden${o.items.some(i=>i.iva)?' (IVA incluido)':''}</div></div><div class="amt">${fmt(o.total)}</div></div>
   ${o.obs?`<div class="obs-box"><strong>Observaciones:</strong> ${o.obs}</div>`:''}
+  ${o.docTipo?`<div style="background:#e8f5f5;border:1px solid #90c0c0;border-radius:6px;padding:10px 14px;margin-top:10px;font-size:11px;color:#1a5a5a">
+    <strong>🧾 Documento tributario:</strong> ${o.docTipo}
+    ${o.docFolio?` · N° <strong>${o.docFolio}</strong>`:''}
+    ${o.docFecha?` · Emitido: <strong>${fmtF(o.docFecha)}</strong>`:''}
+    ${o.docMonto?` · Monto: <strong style="font-family:monospace">${fmt(o.docMonto)}</strong>`:''}
+  </div>`:''}
   <div style="background:#FDF3E0;border:1px solid #E0C070;border-radius:6px;padding:10px 14px;margin-top:10px;font-size:10px;color:#7A4F10">
     <strong>⚠ IMPORTANTE:</strong> Los precios indicados en esta orden son referenciales y están sujetos a modificación según los repuestos y trabajos adicionales que se detecten durante el proceso de desarme y diagnóstico. Cualquier variación será informada al cliente antes de proceder.
   </div>
@@ -5186,6 +5264,12 @@ function buildDocVenta(v,vh){
   })()}
   <div class="total-box"><div><div class="lbl">Total pagado (${fpago})${v.items.some(i=>i.iva)?' — IVA incluido':''}</div></div><div class="amt">${fmt(v.total)}</div></div>
   ${v.obs?`<div class="obs-box">${v.obs}</div>`:''}
+  ${v.docTipo?`<div style="background:#e8f5f5;border:1px solid #90c0c0;border-radius:6px;padding:10px 14px;margin-top:10px;font-size:11px;color:#1a5a5a">
+    <strong>🧾 Documento tributario:</strong> ${v.docTipo}
+    ${v.docFolio?` · N° <strong>${v.docFolio}</strong>`:''}
+    ${v.docFecha?` · Emitido: <strong>${fmtF(v.docFecha)}</strong>`:''}
+    ${v.docMonto?` · Monto: <strong style="font-family:monospace">${fmt(v.docMonto)}</strong>`:''}
+  </div>`:''}
   ${fpago==='Transferencia'||fpago==='Crédito'?bancoHtml():''}
   ${CFG.notaLegal?`<div class="footer">${CFG.notaLegal}</div>`:''}
   <div class="footer">Documento generado el ${today()} — ${CFG.nombre||'Taller Mecánico'}</div>
@@ -5889,7 +5973,7 @@ function guardarAnticipo(){
   }
   if(!DB.anticipos)DB.anticipos=[];
   DB.anticipos.unshift({
-    id:uid(),mecanicoId:mid,mecanicoNombre:m.nombre,
+    id:uid(),mecanicoId:mid,mecanicoNombre:m.nombre,mecanicoRut:m.rut||'',
     tipo:'Anticipo',monto,
     mes,anio,
     desc:$('ant-desc').value.trim()||'Anticipo de sueldo',
@@ -6338,6 +6422,7 @@ function buildPDFVac(m,v){
     <div class="section-hdr">Datos del trabajador</div>
     <div class="info-grid">
       <div class="info-row"><span class="info-lbl">Nombre:</span><span class="info-val">${m?.nombre||v.mecanicoNombre}</span></div>
+      <div class="info-row"><span class="info-lbl">RUT:</span><span class="info-val" style="font-weight:700">${m?.rut||'—'}</span></div>
       <div class="info-row"><span class="info-lbl">Especialidad:</span><span class="info-val">${m?.especialidad||'—'}</span></div>
       <div class="info-row"><span class="info-lbl">Fecha contrato:</span><span class="info-val">${fmtF(m?.fechaContrato||'')}</span></div>
       <div class="info-row"><span class="info-lbl">Año vacaciones:</span><span class="info-val">${v.anio}</span></div>
@@ -6376,7 +6461,7 @@ function buildPDFVac(m,v){
       <div class="firma-block">
         <div class="lbl">Firma del trabajador</div>
         <div style="height:40px"></div>
-        <div class="firma-line">${m?.nombre||v.mecanicoNombre}<br>RUT: ___________________</div>
+        <div class="firma-line">${m?.nombre||v.mecanicoNombre}<br>RUT: ${m?.rut||'___________________'}</div>
       </div>
       <div class="firma-block">
         <div class="lbl">Firma empleador / representante legal</div>
