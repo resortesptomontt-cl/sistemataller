@@ -5889,10 +5889,9 @@ function calcCuotaCreditoMec(mecId, mes, anio){
   if(!DB.creditosMec)DB.creditosMec=[];
   let total=0;
   DB.creditosMec.filter(c=>c.mecanicoId===mecId&&c.estado!=='Pagado').forEach(c=>{
-    // Check if this mes/anio is within the credit payment range
     const cuotas=c.cuotasPlan||[];
-    const cuota=cuotas.find(cu=>cu.mes===mes&&cu.anio===parseInt(anio));
-    if(cuota&&!cuota.pagado)total+=cuota.monto;
+    const cuota=cuotas.find(cu=>cu.mes===mes&&cu.anio===parseInt(anio)&&!cu.pagado);
+    if(cuota)total+=cuota.monto;
   });
   return total;
 }
@@ -6119,34 +6118,71 @@ function limpiarCreditoMec(){
 function renderCreditosMec(){
   if(!DB.creditosMec)DB.creditosMec=[];
   const el=$('lista-creditos-mec');if(!el)return;
-  const activos=DB.creditosMec.filter(c=>c.estado==='Activo');
-  if(!activos.length){el.innerHTML='<div class="empty"><div class="empty-icon">💳</div>Sin créditos activos</div>';return;}
+  const activos=DB.creditosMec.filter(c=>c.estado==='Activo'||c.estado==='Pagado').sort((a,b)=>a.estado==='Pagado'?1:-1);
+  if(!activos.length){el.innerHTML='<div class="empty"><div class="empty-icon">💳</div>Sin créditos registrados</div>';return;}
+  const fmtF=d=>{if(!d)return'—';const[y,m,dd]=d.split('-');return`${dd}/${m}/${y}`;};
   el.innerHTML=activos.map(c=>{
     const pagadas=c.cuotasPlan.filter(cu=>cu.pagado).length;
     const pct=Math.round(pagadas/c.ncuotas*100);
-    return`<div class="exp-row">
+    const proxima=c.cuotasPlan.find(cu=>!cu.pagado);
+    return`<div class="exp-row" style="border-left:3px solid ${c.estado==='Pagado'?'var(--green)':'var(--accent2)'}">
       <div class="exp-hdr" onclick="toggle('crmec-${c.id}')">
         <div>
           <span style="font-weight:600">${c.mecanicoNombre}</span>
           <span style="font-size:11px;color:var(--text2);margin-left:8px">${c.desc}</span>
+          ${c.estado==='Pagado'?'<span class="badge b-green" style="margin-left:6px">✓ Saldado</span>':''}
         </div>
         <div style="text-align:right">
-          <div style="font-size:12px;font-weight:600;font-family:'DM Mono',monospace;color:var(--red)">${fmt(c.saldo)} restante</div>
-          <div style="font-size:10px;color:var(--text2)">${pagadas}/${c.ncuotas} cuotas · ${fmt(c.cuotaMonto)}/mes</div>
+          <div style="font-size:13px;font-weight:700;font-family:'DM Mono',monospace;color:${c.saldo>0?'var(--red)':'var(--green)'}">${fmt(c.saldo)} restante</div>
+          <div style="font-size:10px;color:var(--text2)">${pagadas}/${c.ncuotas} cuotas pagadas</div>
         </div>
       </div>
       <div class="exp-body" id="crmec-${c.id}">
-        <div style="display:flex;gap:4px;flex-wrap:wrap;margin:8px 0">
-          ${c.cuotasPlan.map((cu,i)=>{
-            const fmtF=d=>{if(!d)return'';const[y,m,dd]=d.split('-');return`${dd}/${m}/${y}`;};
-            return`<div style="background:${cu.pagado?'var(--green-light)':'var(--surface2)'};border:1px solid ${cu.pagado?'var(--green)':'var(--border)'};border-radius:var(--radius);padding:5px 10px;font-size:10px;text-align:center;min-width:90px">
-              <div style="font-size:9px;color:var(--text3);margin-bottom:1px">Cuota ${i+1}</div>
-              <div style="font-weight:700;color:${cu.pagado?'var(--green)':'var(--text2)'}">${cu.mes.slice(0,3)} ${cu.anio}</div>
-              ${cu.fecha?`<div style="font-size:9px;color:var(--accent);margin-top:1px">📅 ${fmtF(cu.fecha)}</div>`:''}
-              <div style="font-family:'DM Mono',monospace;font-weight:600;margin-top:2px">${fmt(cu.monto)}</div>
-              <div style="color:${cu.pagado?'var(--green)':'var(--text3)'};font-size:9px">${cu.pagado?'✓ Pagado':'Pendiente'}</div>
-            </div>`;
-          }).join('')}
+        <!-- Barra de progreso -->
+        <div style="display:flex;align-items:center;gap:10px;margin:10px 0 14px">
+          <div style="flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:${pct===100?'var(--green)':'var(--accent2)'};border-radius:4px;transition:width .4s"></div>
+          </div>
+          <span style="font-size:11px;color:var(--text2);white-space:nowrap">${pct}% — ${pagadas}/${c.ncuotas} cuotas</span>
+        </div>
+        ${proxima&&c.estado!=='Pagado'?`<div style="background:var(--amber-light);border:1px solid var(--amber);border-radius:var(--radius);padding:7px 12px;font-size:12px;margin-bottom:12px">
+          ⏳ Próxima cuota: <strong>${proxima.mes} ${proxima.anio}</strong>
+          ${proxima.fecha?` · <strong>${fmtF(proxima.fecha)}</strong>`:''}
+          · <strong style="font-family:'DM Mono',monospace">${fmt(proxima.monto)}</strong>
+        </div>`:''}
+        <!-- Tabla de cuotas -->
+        <div class="tw" style="margin-bottom:12px">
+          <table>
+            <thead><tr><th>#</th><th>Mes / Año</th><th>Fecha descuento</th><th class="tr">Monto</th><th>Estado</th><th></th></tr></thead>
+            <tbody>
+              ${c.cuotasPlan.map((cu,i)=>`
+                <tr style="background:${cu.pagado?'var(--green-light)':''}">
+                  <td style="color:var(--text3);font-weight:600;font-size:11px">${i+1}</td>
+                  <td style="font-weight:${cu.pagado?'400':'600'};color:${cu.pagado?'var(--text2)':'var(--text)'}">${cu.mes} ${cu.anio}</td>
+                  <td style="font-size:11px;color:var(--text2)">${cu.fecha?fmtF(cu.fecha):'—'}</td>
+                  <td class="tr" style="font-family:'DM Mono',monospace;font-weight:600">${fmt(cu.monto)}</td>
+                  <td>
+                    ${cu.pagado
+                      ?`<span class="badge b-green">✓ Pagado${cu.fechaPago?' '+fmtF(cu.fechaPago):''}</span>`
+                      :`<span class="badge b-amber">Pendiente</span>`}
+                  </td>
+                  <td>
+                    ${!cu.pagado&&c.estado!=='Pagado'
+                      ?`<button class="btn btn-xs btn-green" onclick="event.stopPropagation();pagarCuotaCredito('${c.id}',${i})">✓ Marcar pagada</button>`
+                      :cu.pagado
+                        ?`<button class="btn btn-xs" onclick="event.stopPropagation();desmarcarCuotaCredito('${c.id}',${i})" title="Deshacer pago">↩</button>`
+                        :''}
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+            <tfoot>
+              <tr style="background:var(--surface2)">
+                <td colspan="3" style="padding:7px 10px;font-size:11px;font-weight:600">Total crédito</td>
+                <td class="tr" style="font-family:'DM Mono',monospace;font-weight:700">${fmt(c.monto)}</td>
+                <td colspan="2"></td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
         <div style="display:flex;justify-content:flex-end">
           <button class="btn btn-xs btn-red" onclick="event.stopPropagation();eliminarCreditoMec('${c.id}')">🗑 Eliminar</button>
@@ -6159,6 +6195,35 @@ function eliminarCreditoMec(id){
   if(!confirm('¿Eliminar este crédito?'))return;
   DB.creditosMec=DB.creditosMec.filter(c=>c.id!==id);
   save();renderCreditosMec();renderResumenAnt();toast('Crédito eliminado');
+}
+
+function pagarCuotaCredito(creditoId, cuotaIdx){
+  const c=(DB.creditosMec||[]).find(x=>x.id===creditoId);
+  if(!c)return;
+  const cu=c.cuotasPlan[cuotaIdx];
+  if(!cu||cu.pagado)return;
+  cu.pagado=true;
+  cu.fechaPago=today();
+  // Recalculate saldo
+  c.saldo=c.cuotasPlan.filter(x=>!x.pagado).reduce((s,x)=>s+x.monto,0);
+  if(c.saldo<=0){c.estado='Pagado';c.saldo=0;}
+  save();renderCreditosMec();renderResumenAnt();
+  toast(c.saldo<=0
+    ?`✅ Crédito de ${c.mecanicoNombre} completamente saldado`
+    :`Cuota ${cuotaIdx+1} marcada como pagada — Saldo restante: ${fmt(c.saldo)}`);
+}
+
+function desmarcarCuotaCredito(creditoId, cuotaIdx){
+  if(!confirm('¿Deshacer el pago de esta cuota?'))return;
+  const c=(DB.creditosMec||[]).find(x=>x.id===creditoId);
+  if(!c)return;
+  const cu=c.cuotasPlan[cuotaIdx];
+  if(!cu)return;
+  cu.pagado=false;cu.fechaPago=null;
+  c.saldo=c.cuotasPlan.filter(x=>!x.pagado).reduce((s,x)=>s+x.monto,0);
+  c.estado='Activo';
+  save();renderCreditosMec();renderResumenAnt();
+  toast(`Pago de cuota ${cuotaIdx+1} deshecho`);
 }
 
 // Auto-apply monthly credit installments (called on nav to anticipos)
