@@ -5890,7 +5890,7 @@ function calcCuotaCreditoMec(mecId, mes, anio){
   let total=0;
   DB.creditosMec.filter(c=>c.mecanicoId===mecId&&c.estado!=='Pagado').forEach(c=>{
     const cuotas=c.cuotasPlan||[];
-    const cuota=cuotas.find(cu=>cu.mes===mes&&cu.anio===parseInt(anio)&&!cu.pagado);
+    const cuota=cuotas.find(cu=>cu.mes===mes&&parseInt(cu.anio)===parseInt(anio)&&!cu.pagado);
     if(cuota)total+=cuota.monto;
   });
   return total;
@@ -5930,7 +5930,7 @@ function renderResumenAnt(){
     // Build credit rows for this month
     const creditosMes=[];
     creditosActivos.forEach(c=>{
-      const cuota=c.cuotasPlan.find(cu=>cu.mes===mes&&cu.anio===anio);
+      const cuota=c.cuotasPlan.find(cu=>cu.mes===mes&&parseInt(cu.anio)===parseInt(anio));
       if(cuota){
         creditosMes.push({creditoId:c.id,desc:c.desc,cuota,
           saldo:c.saldo,ncuotas:c.ncuotas,pagadas:c.cuotasPlan.filter(x=>x.pagado).length});
@@ -5992,7 +5992,7 @@ function renderResumenAnt(){
               ${cr.cuota.fecha?`<span style="font-size:10px;color:var(--text3)"> · ${fmtF(cr.cuota.fecha)}</span>`:''}
               ${cr.cuota.pagado
                 ?`<span class="badge b-green" style="font-size:9px;margin-left:4px">✓ Pagada</span>`
-                :`<button class="btn btn-xs btn-green" style="margin-left:6px;padding:2px 8px;font-size:10px" onclick="pagarCuotaCredito('${cr.creditoId}',${(DB.creditosMec||[]).find(x=>x.id===cr.creditoId)?.cuotasPlan?.findIndex(cu=>cu.mes===mes&&cu.anio===anio)??0})">✓ Marcar pagada</button>`}
+                :`<button class="btn btn-xs btn-green" style="margin-left:6px;padding:2px 8px;font-size:10px" onclick="pagarCuotaCredito('${cr.creditoId}',${(DB.creditosMec||[]).find(x=>x.id===cr.creditoId)?.cuotasPlan?.findIndex(cu=>cu.mes===mes&&parseInt(cu.anio)===parseInt(anio))??0})">✓ Marcar pagada</button>`}
             </span>
             <span style="font-family:'DM Mono',monospace;font-weight:600;white-space:nowrap;color:${cr.cuota.pagado?'var(--text3)':'var(--red)'}${cr.cuota.pagado?';text-decoration:line-through':''}">-${fmt(cr.cuota.monto)}</span>
           </div>`).join('')}
