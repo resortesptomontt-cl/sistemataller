@@ -3536,150 +3536,10 @@ function confirmarFpagoOT(){
 // ══════════════════════════════════════════════════
 // ANTICIPOS / PRÉSTAMOS / DESCUENTOS
 // ══════════════════════════════════════════════════
-function onAntTipo(){
-  const t=$('ant-tipo').value;
-  $('ant-cuotas-wrap').style.display=t==='Préstamo'?'block':'none';
-}
-function guardarAnticipo(){
-  const mid=$('ant-mec').value;
-  if(!mid){toast('Selecciona un trabajador','err');return;}
-  const monto=parseFloat($('ant-monto').value)||0;
-  if(!monto){toast('Ingresa el monto','err');return;}
-  const m=DB.mecanicos.find(x=>x.id===mid);
-  const tipo=$('ant-tipo').value;
-  const cuotas=tipo==='Préstamo'?parseInt($('ant-cuotas').value)||1:1;
-  DB.anticipos.push({
-    id:uid(),mecanicoId:mid,mecanicoNombre:m.nombre,
-    tipo,monto,cuotas,cuotasMonto:Math.ceil(monto/cuotas),
-    mes:$('ant-mes').value,anio:parseInt($('ant-anio').value)||new Date().getFullYear(),
-    desc:$('ant-desc').value.trim()||tipo,
-    fecha:$('ant-fecha').value||today(),
-    estado:'Pendiente',
-    pagos:[],saldo:monto,
-    creado:new Date().toISOString()
-  });
-  save();limpiarAnt();renderStatsAnt();renderResumenAnt();renderHistAnt();updateBadges();
-  toast(`${tipo} de ${fmt(monto)} registrado a ${m.nombre}`);
-}
-function limpiarAnt(){
-  ['ant-mec','ant-desc'].forEach(i=>{if($(i))$(i).value='';});
-  if($('ant-monto'))$('ant-monto').value='';
-  if($('ant-cuotas'))$('ant-cuotas').value=1;
-  $('ant-cuotas-wrap').style.display='none';
-}
-function marcarDescuento(id){
-  const a=DB.anticipos.find(x=>x.id===id);
-  if(!a||a.estado==='Pagado')return;
-  const monto=Math.min(a.cuotasMonto,a.saldo);
-  a.pagos.push({monto,fecha:today(),creado:new Date().toISOString()});
-  a.saldo=Math.max(0,a.saldo-monto);
-  a.estado=a.saldo===0?'Pagado':'Pendiente';
-  save();renderStatsAnt();renderResumenAnt();renderHistAnt();updateBadges();
-  toast(a.saldo===0?`${a.tipo} de ${a.mecanicoNombre} completamente pagado`:`Descuento de ${fmt(monto)} aplicado — saldo: ${fmt(a.saldo)}`);
-}
 function eliminarAnticipo(id){
   if(!confirm('¿Eliminar este registro?'))return;
   DB.anticipos=DB.anticipos.filter(a=>a.id!==id);
   save();renderStatsAnt();renderResumenAnt();renderHistAnt();updateBadges();toast('Eliminado');
-}
-function renderStatsAnt(){
-  const pend=DB.anticipos.filter(a=>a.estado!=='Pagado');
-  const totalPend=pend.reduce((s,a)=>s+a.saldo,0);
-  const totalOtorgado=DB.anticipos.reduce((s,a)=>s+a.monto,0);
-  const pagados=DB.anticipos.filter(a=>a.estado==='Pagado').length;
-  const mes=meses[new Date().getMonth()];
-  const estesMes=DB.anticipos.filter(a=>a.mes===mes&&a.anio===new Date().getFullYear());
-  const totalMes=estesMes.reduce((s,a)=>s+a.monto,0);
-  const sc=$('ant-stats');
-  if(sc)sc.innerHTML=`
-    <div class="stat"><div class="stat-lbl">Saldo pendiente total</div><div class="stat-val" style="color:var(--red)">${fmt(totalPend)}</div><div class="stat-sub">${pend.length} registro${pend.length!==1?'s':''} activos</div></div>
-    <div class="stat"><div class="stat-lbl">Total ${mes} (este mes)</div><div class="stat-val" style="color:var(--amber)">${fmt(totalMes)}</div><div class="stat-sub">${estesMes.length} movimiento${estesMes.length!==1?'s':''}</div></div>
-    <div class="stat"><div class="stat-lbl">Total otorgado hist.</div><div class="stat-val">${fmt(totalOtorgado)}</div><div class="stat-sub">acumulado</div></div>
-    <div class="stat"><div class="stat-lbl">Registros pagados</div><div class="stat-val" style="color:var(--green)">${pagados}</div><div class="stat-sub">completados</div></div>`;
-}
-function renderResumenAnt(){
-  const mes=$('ant-filtro-mes')?.value||meses[new Date().getMonth()];
-  const anio=parseInt($('ant-filtro-anio')?.value)||new Date().getFullYear();
-  const lista=DB.anticipos.filter(a=>a.mes===mes&&a.anio===anio);
-  const el=$('ant-resumen-tabla');if(!el)return;
-  if(!lista.length){el.innerHTML=`<div class="empty"><div class="empty-icon">📅</div>Sin movimientos en ${mes} ${anio}</div>`;return;}
-  // Group by worker
-  const byMec={};
-  lista.forEach(a=>{
-    if(!byMec[a.mecanicoId])byMec[a.mecanicoId]={nombre:a.mecanicoNombre,anticipos:0,prestamos:0,descuentos:0,otros:0,total:0,pendiente:0,registros:[]};
-    const g=byMec[a.mecanicoId];
-    if(a.tipo==='Anticipo')g.anticipos+=a.monto;
-    else if(a.tipo==='Préstamo')g.prestamos+=a.monto;
-    else if(a.tipo==='Descuento')g.descuentos+=a.monto;
-    else g.otros+=a.monto;
-    g.total+=a.monto;g.pendiente+=a.saldo;g.registros.push(a);
-  });
-  const rows=Object.values(byMec);
-  const totalGeneral=rows.reduce((s,r)=>s+r.total,0);
-  const pendGeneral=rows.reduce((s,r)=>s+r.pendiente,0);
-  el.innerHTML=`<div class="tw"><table><thead><tr>
-    <th>Trabajador</th><th>Anticipos</th><th>Préstamos</th><th>Descuentos</th><th>Otros</th><th class="tr">Total mes</th><th class="tr">Saldo pend.</th>
-  </tr></thead><tbody>`+
-  rows.map(r=>`<tr>
-    <td style="font-weight:500">${r.nombre}</td>
-    <td style="font-family:'DM Mono',monospace">${r.anticipos?fmt(r.anticipos):'—'}</td>
-    <td style="font-family:'DM Mono',monospace">${r.prestamos?fmt(r.prestamos):'—'}</td>
-    <td style="font-family:'DM Mono',monospace">${r.descuentos?fmt(r.descuentos):'—'}</td>
-    <td style="font-family:'DM Mono',monospace">${r.otros?fmt(r.otros):'—'}</td>
-    <td class="tr" style="font-family:'DM Mono',monospace;font-weight:700">${fmt(r.total)}</td>
-    <td class="tr" style="font-family:'DM Mono',monospace;font-weight:700;color:${r.pendiente>0?'var(--red)':'var(--green)'}">${fmt(r.pendiente)}</td>
-  </tr>`).join('')+
-  `<tr style="background:var(--surface2)">
-    <td style="font-weight:700">TOTALES</td><td colspan="4"></td>
-    <td class="tr" style="font-family:'DM Mono',monospace;font-weight:700">${fmt(totalGeneral)}</td>
-    <td class="tr" style="font-family:'DM Mono',monospace;font-weight:700;color:${pendGeneral>0?'var(--red)':'var(--green)'}">${fmt(pendGeneral)}</td>
-  </tr>`+
-  '</tbody></table></div>'+
-  `<div style="margin-top:12px">
-    <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text2);margin-bottom:8px">Detalle por trabajador</div>`+
-  rows.map(r=>`
-    <div style="margin-bottom:8px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
-      <div style="background:var(--surface2);padding:8px 12px;font-size:12px;font-weight:600">${r.nombre} — ${fmt(r.total)} total · <span style="color:${r.pendiente>0?'var(--red)':'var(--green)'}">${fmt(r.pendiente)} pendiente</span></div>
-      <div class="tw"><table><thead><tr><th>Tipo</th><th>Descripción</th><th>Cuotas</th><th>Estado</th><th class="tr">Monto</th><th class="tr">Saldo</th><th>Acción</th></tr></thead><tbody>
-        ${r.registros.map(a=>`<tr>
-          <td><span class="badge ${a.tipo==='Anticipo'?'b-amber':a.tipo==='Préstamo'?'b-red':a.tipo==='Descuento'?'b-blue':'b-gray'}">${a.tipo}</span></td>
-          <td>${a.desc}</td>
-          <td style="text-align:center">${a.cuotas>1?`${a.pagos.length}/${a.cuotas}`:'—'}</td>
-          <td><span class="status ${a.estado==='Pagado'?'s-entregado':a.estado==='Pendiente'?'s-pendiente':'s-proceso'}">${a.estado}</span></td>
-          <td class="tr" style="font-family:'DM Mono',monospace">${fmt(a.monto)}</td>
-          <td class="tr" style="font-family:'DM Mono',monospace;font-weight:600;color:${a.saldo>0?'var(--red)':'var(--green)'}">${fmt(a.saldo)}</td>
-          <td>${a.estado!=='Pagado'?`<button class="btn btn-xs btn-green" onclick="marcarDescuento('${a.id}')">✓ Descontar ${fmt(a.cuotasMonto)}</button>`:
-          '<span style="font-size:10px;color:var(--green)">✓ Pagado</span>'}</td>
-        </tr>`).join('')}
-      </tbody></table></div>
-    </div>`).join('')+`</div>`;
-}
-function renderHistAnt(){
-  const q=($('sant')?.value||'').toLowerCase();
-  const tipo=$('sant-tipo')?.value||'';
-  const est=$('sant-est')?.value||'';
-  let lista=DB.anticipos;
-  if(q)lista=lista.filter(a=>a.mecanicoNombre.toLowerCase().includes(q)||a.desc.toLowerCase().includes(q));
-  if(tipo)lista=lista.filter(a=>a.tipo===tipo);
-  if(est)lista=lista.filter(a=>a.estado===est);
-  lista=[...lista].sort((a,b)=>b.creado>a.creado?1:-1);
-  const el=$('ant-historial-tabla');if(!el)return;
-  if(!lista.length){el.innerHTML='<div class="empty"><div class="empty-icon">📋</div>Sin registros</div>';return;}
-  el.innerHTML='<div class="tw"><table><thead><tr><th>Trabajador</th><th>Tipo</th><th>Mes/Año</th><th>Descripción</th><th>Cuotas</th><th>Estado</th><th class="tr">Monto</th><th class="tr">Saldo</th><th>Acciones</th></tr></thead><tbody>'+
-    lista.map(a=>`<tr>
-      <td style="font-weight:500">${a.mecanicoNombre}</td>
-      <td><span class="badge ${a.tipo==='Anticipo'?'b-amber':a.tipo==='Préstamo'?'b-red':a.tipo==='Descuento'?'b-blue':'b-gray'}">${a.tipo}</span></td>
-      <td style="white-space:nowrap">${a.mes} ${a.anio}</td>
-      <td>${a.desc}</td>
-      <td style="text-align:center;font-family:'DM Mono',monospace">${a.cuotas>1?`${a.pagos.length}/${a.cuotas} cuotas`:'—'}</td>
-      <td><span class="status ${a.estado==='Pagado'?'s-entregado':a.estado==='Pendiente'?'s-pendiente':'s-proceso'}">${a.estado}</span></td>
-      <td class="tr" style="font-family:'DM Mono',monospace">${fmt(a.monto)}</td>
-      <td class="tr" style="font-family:'DM Mono',monospace;font-weight:600;color:${a.saldo>0?'var(--red)':'var(--green)'}">${fmt(a.saldo)}</td>
-      <td><div class="row-acts">
-        ${a.estado!=='Pagado'?`<button class="btn btn-xs btn-green" onclick="marcarDescuento('${a.id}')">✓ Descontar</button>`:''}
-        <button class="btn btn-xs btn-red" onclick="eliminarAnticipo('${a.id}')">Eliminar</button>
-      </div></td>
-    </tr>`).join('')+'</tbody></table></div>';
 }
 function exportarResumenAnt(){
   const mes=$('ant-filtro-mes')?.value||'';
@@ -4681,7 +4541,7 @@ function initAntPdfTab(){
 function filtrarAntSemana(){
   const desde=$('ant-pdf-desde').value||'';
   const hasta=$('ant-pdf-hasta').value||'';
-  const tipo=$('ant-pdf-tipo').value||'';
+  const tipo=$('ant-pdf-tipo')?.value||'';
   return(DB.anticipos||[]).filter(a=>{
     if(tipo&&a.tipo!==tipo)return false;
     if(desde&&a.fecha<desde)return false;
@@ -5552,7 +5412,7 @@ function reservaAOT(id){
     if(r.vehiculoId&&$('ot-veh'))$('ot-veh').value=r.vehiculoId;
     if($('ot-diag'))$('ot-diag').value=r.servicio;
     if($('ot-fecha-in'))$('ot-fecha-in').value=r.fecha;
-    if(r.mecanicoId&&$('ot-mec'))$('ot-mec').value=r.mecanicoId;
+    if(r.mecanicoId&&$('ot-mec-ids'))$('ot-mec-ids').value=r.mecanicoId;
     toast(`Formulario de OT prellenado con reserva de ${r.clienteNombre}`,'info');
   },200);
 }
@@ -6033,17 +5893,25 @@ function renderResumenAnt(){
             <span style="font-family:'DM Mono',monospace">${fmt(bruto-anticipos)}</span>
           </div>`:''}
 
-          <!-- CUOTAS CRÉDITO (se descuentan del saldo disponible) -->
+          <!-- CUOTAS CRÉDITO — descuento directo del sueldo -->
+          ${creditosMes.length?`<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;margin-bottom:2px">Descuentos por crédito / préstamo:</div>`:''}
           ${creditosMes.map(cr=>`
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
-            <span style="color:var(--red)">
-              − Cuota crédito: <em style="font-style:normal;font-size:11px;font-weight:600">${cr.desc}</em>
-              ${cr.cuota.fecha?`<span style="font-size:10px;color:var(--text3)"> · ${fmtF(cr.cuota.fecha)}</span>`:''}
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;background:${cr.cuota.pagado?'var(--green-light)':'var(--red-light)'};border-radius:var(--radius);padding:6px 10px;margin-bottom:2px">
+            <div style="flex:1">
+              <span style="color:${cr.cuota.pagado?'var(--green)':'var(--red)'};font-weight:600;font-size:12px">
+                − ${cr.desc}
+              </span>
+              ${cr.cuota.fecha?`<span style="font-size:10px;color:var(--text3);margin-left:6px">📅 ${fmtF(cr.cuota.fecha)}</span>`:''}
+              <div style="font-size:10px;color:var(--text3);margin-top:2px">
+                Cuota ${cr.pagadas+1}/${cr.ncuotas} · Saldo restante: ${fmt(cr.saldo)}
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+              <span style="font-family:'DM Mono',monospace;font-weight:700;color:${cr.cuota.pagado?'var(--green)':'var(--red)'}${cr.cuota.pagado?';text-decoration:line-through':''}">-${fmt(cr.cuota.monto)}</span>
               ${cr.cuota.pagado
-                ?`<span class="badge b-green" style="font-size:9px;margin-left:4px">✓ Pagada</span>`
-                :`<button class="btn btn-xs btn-green" style="margin-left:6px;padding:2px 8px;font-size:10px" onclick="pagarCuotaCredito('${cr.creditoId}',${(DB.creditosMec||[]).find(x=>x.id===cr.creditoId)?.cuotasPlan?.findIndex(cu=>cu.mes===mes&&parseInt(cu.anio)===parseInt(anio))??0})">✓ Marcar pagada</button>`}
-            </span>
-            <span style="font-family:'DM Mono',monospace;font-weight:600;white-space:nowrap;color:${cr.cuota.pagado?'var(--text3)':'var(--red)'}${cr.cuota.pagado?';text-decoration:line-through':''}">-${fmt(cr.cuota.monto)}</span>
+                ?`<span class="badge b-green" style="font-size:9px">✓ Pagada</span>`
+                :`<button class="btn btn-xs btn-green" style="padding:2px 8px;font-size:10px" onclick="pagarCuotaCredito('${cr.creditoId}',${(DB.creditosMec||[]).find(x=>x.id===cr.creditoId)?.cuotasPlan?.findIndex(cu=>cu.mes===mes&&parseInt(cu.anio)===parseInt(anio))??0})">✓ Marcar pagada</button>`}
+            </div>
           </div>`).join('')}
 
           <!-- LÍQUIDO FINAL -->
