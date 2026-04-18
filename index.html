@@ -1087,7 +1087,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
           </select>
         </div>
         <div class="field"><label>Año</label>
-          <input id="ant-filtro-anio" type="number" value="2025" min="2020" oninput="renderResumenAnt()" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;background:var(--surface);color:var(--text);outline:none;width:90px">
+          <input id="ant-filtro-anio" type="number" value="" min="2020" oninput="renderResumenAnt()" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;background:var(--surface);color:var(--text);outline:none;width:90px">
         </div>
         <button class="btn btn-sm btn-teal" onclick="exportarResumenAnt()">⬇ Exportar mes</button>
       </div>
@@ -5792,8 +5792,12 @@ function calcAnticiposMes(mecId, mes, anio){
 
 // ─ Resumen por trabajador ─────────────────────────
 function renderResumenAnt(){
+  const anioActual=new Date().getFullYear();
+  // Initialize year field if empty
+  const anioEl=$('ant-filtro-anio');
+  if(anioEl&&!anioEl.value)anioEl.value=anioActual;
   const mes=$('ant-filtro-mes')?.value||meses[new Date().getMonth()];
-  const anio=parseInt($('ant-filtro-anio')?.value)||new Date().getFullYear();
+  const anio=parseInt($('ant-filtro-anio')?.value)||anioActual;
   const el=$('ant-resumen-tabla');if(!el)return;
   const mecs=DB.mecanicos.filter(m=>m.estado==='Activo');
   if(!mecs.length){el.innerHTML='<div class="empty"><div class="empty-icon">👷</div>Sin mecánicos activos</div>';return;}
