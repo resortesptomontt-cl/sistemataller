@@ -427,14 +427,14 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
 
     <div class="nav-group">Finanzas</div>
     <button class="nav-item" title="Cuentas por Cobrar" onclick="nav('creditos',this)"><span class="ni">💳</span><span>Cuentas por Cobrar</span><span class="nav-badge" id="badge-cred" style="display:none">0</span></button>
-    <button class="nav-item" title="Anticipos / Préstamos" onclick="nav('anticipos',this)"><span class="ni">💼</span><span>Anticipos / Préstamos</span><span class="nav-badge" id="badge-ant" style="display:none">0</span></button>
-    <button class="nav-item" title="Vacaciones" onclick="nav('vacaciones',this)"><span class="ni">🏖️</span><span>Vacaciones</span></button>
-    <button class="nav-item" title="Gastos" onclick="nav('gastos',this)"><span class="ni">💸</span><span>Gastos</span></button>
-    <button class="nav-item" title="Reportes" onclick="nav('reportes',this)"><span class="ni">📈</span><span>Reportes</span></button>
+    <button class="nav-item" title="Anticipos / Préstamos" onclick="navConRol('anticipos',this)"><span class="ni">💼</span><span>Anticipos / Préstamos</span><span class="nav-badge" id="badge-ant" style="display:none">0</span></button>
+    <button class="nav-item" title="Vacaciones" onclick="navConRol('vacaciones',this)"><span class="ni">🏖️</span><span>Vacaciones</span></button>
+    <button class="nav-item" title="Gastos" onclick="navConRol('gastos',this)"><span class="ni">💸</span><span>Gastos</span></button>
+    <button class="nav-item" title="Reportes" onclick="navConRol('reportes',this)"><span class="ni">📈</span><span>Reportes</span></button>
 
     <div class="nav-group">Sistema</div>
     <button class="nav-item" title="Proveedores" onclick="nav('proveedores',this)"><span class="ni">🏭</span><span>Proveedores</span></button>
-    <button class="nav-item" title="Configuración" onclick="nav('config',this)"><span class="ni">⚙️</span><span>Configuración</span></button>
+    <button class="nav-item" title="Configuración" onclick="navConRol('config',this)"><span class="ni">⚙️</span><span>Configuración</span></button>
   </div>
   <div class="sidebar-footer">v3.0 Pro — Resortes PM</div>
 </nav>
@@ -1161,22 +1161,62 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
 
   <!-- Tab PDF comprobante -->
   <div id="ant-tab-pdf" class="card" style="display:none">
-    <div class="card-title"><div class="card-title-left">🖨 Comprobante de anticipo</div></div>
-    <p style="font-size:12px;color:var(--text2);margin-bottom:14px">Genera un comprobante por fecha para que cada trabajador firme al recibir el anticipo.</p>
-    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">
-      <div class="field"><label>Desde</label><input id="ant-pdf-desde" type="date"></div>
-      <div class="field"><label>Hasta</label><input id="ant-pdf-hasta" type="date"></div>
-      <div class="field"><label>Trabajador</label>
-        <select id="ant-pdf-mec" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text);outline:none">
-          <option value="">Todos</option>
-        </select>
-      </div>
-      <button class="btn btn-primary" onclick="previsualizarPDFSemanal()">👁 Previsualizar</button>
-      <button class="btn btn-orange" onclick="imprimirPDFSemanal()">🖨 Imprimir / PDF</button>
+    <div class="card-title"><div class="card-title-left">🖨 Comprobantes de anticipos</div></div>
+
+    <!-- Tabs internas -->
+    <div style="display:flex;gap:6px;margin-bottom:14px;border-bottom:2px solid var(--border);padding-bottom:0">
+      <button id="pdf-tab-ind-btn" onclick="switchPdfTab('individual')"
+        style="padding:8px 16px;border:none;background:none;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif;font-weight:600;color:var(--accent);border-bottom:2px solid var(--accent);margin-bottom:-2px">
+        👤 Comprobante individual
+      </button>
+      <button id="pdf-tab-todos-btn" onclick="switchPdfTab('todos')"
+        style="padding:8px 16px;border:none;background:none;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif;font-weight:400;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-2px">
+        👥 Todos los trabajadores
+      </button>
     </div>
-    <div id="ant-pdf-preview" style="display:none">
-      <div style="font-size:11px;color:var(--text2);margin-bottom:8px" id="ant-pdf-info"></div>
-      <div style="border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;background:#fff" id="ant-pdf-contenido"></div>
+
+    <!-- Panel: comprobante individual -->
+    <div id="pdf-panel-individual">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px">Selecciona un trabajador y el período para generar su comprobante personal de anticipos.</div>
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">
+        <div class="field"><label>Trabajador *</label>
+          <select id="ant-pdf-mec-ind" style="padding:8px 11px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);outline:none">
+            <option value="">— Seleccionar —</option>
+          </select>
+        </div>
+        <div class="field"><label>Desde</label><input id="ant-pdf-desde-ind" type="date"></div>
+        <div class="field"><label>Hasta</label><input id="ant-pdf-hasta-ind" type="date"></div>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:12px">
+        <button class="btn btn-primary" onclick="previsualizarPDFIndividual()">👁 Previsualizar</button>
+        <button class="btn btn-orange" onclick="imprimirPDFIndividual()">🖨 Imprimir</button>
+      </div>
+      <div id="ant-pdf-preview-ind" style="display:none">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:8px" id="ant-pdf-info-ind"></div>
+        <div style="border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;background:#fff" id="ant-pdf-contenido-ind"></div>
+      </div>
+    </div>
+
+    <!-- Panel: todos los trabajadores -->
+    <div id="pdf-panel-todos" style="display:none">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px">Genera un comprobante consolidado con todos los anticipos del período, agrupados por trabajador. Cada uno firma en su sección.</div>
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">
+        <div class="field"><label>Desde</label><input id="ant-pdf-desde" type="date"></div>
+        <div class="field"><label>Hasta</label><input id="ant-pdf-hasta" type="date"></div>
+        <div class="field"><label>Filtrar trabajador</label>
+          <select id="ant-pdf-mec" style="padding:8px 11px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);outline:none">
+            <option value="">Todos</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:12px">
+        <button class="btn btn-primary" onclick="previsualizarPDFSemanal()">👁 Previsualizar</button>
+        <button class="btn btn-orange" onclick="imprimirPDFSemanal()">🖨 Imprimir todos</button>
+      </div>
+      <div id="ant-pdf-preview" style="display:none">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:8px" id="ant-pdf-info"></div>
+        <div style="border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;background:#fff" id="ant-pdf-contenido"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -1277,6 +1317,54 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
     <div id="cfg-bk-api-nota" style="font-size:11px;color:var(--text3)">
       💡 <strong>Chrome / Edge:</strong> usa "Elegir carpeta" para guardar siempre en la misma ubicación. 
       Otros navegadores descargan en la carpeta de descargas predeterminada.
+    </div>
+  </div>
+
+  <!-- ── Gestión de PINes y roles ── -->
+  <div class="card">
+    <div class="card-title"><div class="card-title-left">🔐 PINes de acceso y roles</div></div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:14px">
+      El sistema tiene dos roles: <strong>Administrador</strong> (acceso total) y <strong>Vendedor</strong> (sin acceso a Anticipos, Vacaciones, Gastos, Reportes ni Configuración). Cada rol tiene su propio PIN de 4 dígitos.
+    </div>
+
+    <!-- Cambiar PIN Admin -->
+    <div style="background:var(--surface2);border-radius:var(--radius);padding:14px;margin-bottom:12px;border-left:3px solid var(--accent)">
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px">🔑 PIN Administrador</div>
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+        <div class="field" style="margin:0">
+          <label>Confirmar PIN actual</label>
+          <input id="cfg-pin-admin-actual" type="password" maxlength="4" placeholder="••••" style="width:100px;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:'DM Mono',monospace;background:var(--bg);color:var(--text);outline:none;letter-spacing:.2em">
+        </div>
+        <div class="field" style="margin:0">
+          <label>Nuevo PIN Admin (4 dígitos)</label>
+          <input id="cfg-pin-admin-nuevo" type="password" maxlength="4" placeholder="••••" style="width:100px;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:'DM Mono',monospace;background:var(--bg);color:var(--text);outline:none;letter-spacing:.2em">
+        </div>
+        <div class="field" style="margin:0">
+          <label>Repetir nuevo PIN</label>
+          <input id="cfg-pin-admin-rep" type="password" maxlength="4" placeholder="••••" style="width:100px;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:'DM Mono',monospace;background:var(--bg);color:var(--text);outline:none;letter-spacing:.2em">
+        </div>
+        <button class="btn btn-primary" onclick="cambiarPinAdmin()">✓ Cambiar PIN admin</button>
+      </div>
+    </div>
+
+    <!-- Cambiar PIN Vendedor -->
+    <div style="background:var(--surface2);border-radius:var(--radius);padding:14px;border-left:3px solid var(--teal)">
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px">👤 PIN Vendedor</div>
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+        <div class="field" style="margin:0">
+          <label>Confirmar PIN admin (para autorizar)</label>
+          <input id="cfg-pin-vend-admin" type="password" maxlength="4" placeholder="••••" style="width:100px;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:'DM Mono',monospace;background:var(--bg);color:var(--text);outline:none;letter-spacing:.2em">
+        </div>
+        <div class="field" style="margin:0">
+          <label>Nuevo PIN Vendedor (4 dígitos)</label>
+          <input id="cfg-pin-vend-nuevo" type="password" maxlength="4" placeholder="••••" style="width:100px;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:'DM Mono',monospace;background:var(--bg);color:var(--text);outline:none;letter-spacing:.2em">
+        </div>
+        <div class="field" style="margin:0">
+          <label>Repetir nuevo PIN</label>
+          <input id="cfg-pin-vend-rep" type="password" maxlength="4" placeholder="••••" style="width:100px;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:'DM Mono',monospace;background:var(--bg);color:var(--text);outline:none;letter-spacing:.2em">
+        </div>
+        <button class="btn btn-teal" onclick="cambiarPinVendedor()">✓ Cambiar PIN vendedor</button>
+      </div>
     </div>
   </div>
 
@@ -2053,6 +2141,7 @@ function nav(id,btn){
       poblarSel('ant-mec',DB.mecanicos.filter(m=>m.estado==='Activo'),'nombre');
       poblarSel('cred-mec',DB.mecanicos.filter(m=>m.estado==='Activo'),'nombre');
       poblarSel('ant-pdf-mec',DB.mecanicos,'nombre');
+      poblarSel('ant-pdf-mec-ind',DB.mecanicos.filter(m=>m.estado==='Activo'),'nombre');
       setToday('ant-fecha');
       const m=new Date().getMonth();
       if($('ant-mes'))$('ant-mes').selectedIndex=m;
@@ -4536,8 +4625,150 @@ function initAntPdfTab(){
   const iso=d=>d.toISOString().slice(0,10);
   if($('ant-pdf-desde'))$('ant-pdf-desde').value=iso(lunes);
   if($('ant-pdf-hasta'))$('ant-pdf-hasta').value=iso(domingo);
+  if($('ant-pdf-desde-ind'))$('ant-pdf-desde-ind').value=iso(lunes);
+  if($('ant-pdf-hasta-ind'))$('ant-pdf-hasta-ind').value=iso(domingo);
   $('ant-pdf-preview').style.display='none';
 }
+function switchPdfTab(tab){
+  const esInd=tab==='individual';
+  $('pdf-panel-individual').style.display=esInd?'block':'none';
+  $('pdf-panel-todos').style.display=esInd?'none':'block';
+  const btnInd=$('pdf-tab-ind-btn');
+  const btnTod=$('pdf-tab-todos-btn');
+  if(btnInd){btnInd.style.fontWeight=esInd?'600':'400';btnInd.style.color=esInd?'var(--accent)':'var(--text2)';btnInd.style.borderBottomColor=esInd?'var(--accent)':'transparent';}
+  if(btnTod){btnTod.style.fontWeight=esInd?'400':'600';btnTod.style.color=esInd?'var(--text2)':'var(--accent)';btnTod.style.borderBottomColor=esInd?'transparent':'var(--accent)';}
+}
+
+function filtrarAntIndividual(){
+  const mid=$('ant-pdf-mec-ind')?.value||'';
+  const desde=$('ant-pdf-desde-ind')?.value||'';
+  const hasta=$('ant-pdf-hasta-ind')?.value||'';
+  if(!mid){toast('Selecciona un trabajador','err');return null;}
+  return(DB.anticipos||[]).filter(a=>{
+    if(a.mecanicoId!==mid)return false;
+    if(desde&&a.fecha<desde)return false;
+    if(hasta&&a.fecha>hasta)return false;
+    return true;
+  }).sort((a,b)=>a.fecha>b.fecha?1:-1);
+}
+
+function previsualizarPDFIndividual(){
+  const lista=filtrarAntIndividual();
+  if(!lista)return;
+  const prev=$('ant-pdf-preview-ind');
+  if(!lista.length){toast('Sin anticipos en el período seleccionado','warn');prev.style.display='none';return;}
+  $('ant-pdf-info-ind').textContent=`${lista.length} anticipo${lista.length!==1?'s':''} · Total: ${fmt(lista.reduce((s,a)=>s+a.monto,0))}`;
+  $('ant-pdf-contenido-ind').innerHTML=buildComprobanteIndividual(lista,false);
+  prev.style.display='block';
+}
+
+function imprimirPDFIndividual(){
+  const lista=filtrarAntIndividual();
+  if(!lista)return;
+  if(!lista.length){toast('Sin anticipos en el período seleccionado','warn');return;}
+  const win=window.open('','_blank','width=820,height=1100');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Comprobante — ${lista[0]?.mecanicoNombre||''}</title></head><body>${buildComprobanteIndividual(lista,true)}</body></html>`);
+  win.document.close();win.focus();
+  setTimeout(()=>{win.print();},400);
+}
+
+function buildComprobanteIndividual(lista,forPrint){
+  const cfg=CFG||{};
+  const fmtF=d=>{if(!d)return'';const[y,m,dd]=d.split('-');return`${dd}/${m}/${y}`;};
+  const desde=$('ant-pdf-desde-ind')?.value||'';
+  const hasta=$('ant-pdf-hasta-ind')?.value||'';
+  const mec=DB.mecanicos.find(x=>x.id===$('ant-pdf-mec-ind')?.value)||{nombre:lista[0]?.mecanicoNombre||''};
+  const total=lista.reduce((s,a)=>s+a.monto,0);
+  const periodo=desde&&hasta?`${fmtF(desde)} al ${fmtF(hasta)}`:fmtF(desde)||fmtF(hasta)||'Período';
+  return`<style>
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    body,div,td,th,p,span{font-family:Arial,sans-serif;font-size:12px;color:#111}
+    .doc{max-width:740px;margin:0 auto;padding:${forPrint?'10px':'22px'}}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:12px;border-bottom:2.5px solid #1a3a5c;margin-bottom:16px}
+    .co-name{font-size:15px;font-weight:700;color:#1a3a5c}
+    .co-info{font-size:10px;color:#666;margin-top:2px}
+    .doc-title{text-align:right}
+    .doc-title .tipo{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#888}
+    .doc-title .nom{font-size:16px;font-weight:700;color:#b85c1a}
+    .worker-box{background:#f0f4f8;border-radius:8px;padding:12px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
+    .worker-name{font-size:16px;font-weight:700}
+    .worker-rut{font-size:11px;color:#666;margin-top:2px}
+    .section-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#888;border-bottom:1px solid #e0e0e0;padding-bottom:4px;margin:14px 0 8px}
+    table{width:100%;border-collapse:collapse}
+    th{background:#1a3a5c;color:#fff;padding:7px 10px;text-align:left;font-size:11px}
+    td{padding:7px 10px;border-bottom:1px solid #eee;font-size:11px}
+    tr:nth-child(even) td{background:#f9f9f9}
+    .total-row td{background:#1a3a5c;color:#fff;font-weight:700;font-size:13px}
+    .total-row .monto{font-size:16px;text-align:right;font-family:monospace}
+    .firma-section{margin-top:28px;display:grid;grid-template-columns:1fr 1fr;gap:40px}
+    .firma-block .lbl{font-size:10px;color:#888;margin-bottom:4px}
+    .firma-line{border-top:1px solid #333;padding-top:7px;font-size:11px;color:#555}
+    .aviso{background:#fff8e1;border:1px solid #e0c060;border-radius:6px;padding:9px 13px;font-size:10px;color:#7a5f10;margin:14px 0}
+    .footer{margin-top:16px;padding-top:8px;border-top:1px solid #ddd;font-size:9px;color:#aaa;text-align:center}
+    @media print{.no-print{display:none}}
+  </style>
+  <div class="doc">
+    <div class="header">
+      <div>
+        ${cfg.logo?`<img src="${cfg.logo}" style="height:40px;max-width:90px;object-fit:contain;display:block;margin-bottom:5px">`:''}
+        <div class="co-name">${cfg.nombre||'Taller Mecánico'}</div>
+        ${cfg.rut?`<div class="co-info">RUT: ${cfg.rut}</div>`:''}
+        ${cfg.dir?`<div class="co-info">📍 ${cfg.dir}${cfg.ciudad?', '+cfg.ciudad:''}</div>`:''}
+        ${cfg.fono?`<div class="co-info">📞 ${cfg.fono}</div>`:''}
+      </div>
+      <div class="doc-title">
+        <div class="tipo">Comprobante de Anticipos</div>
+        <div class="nom">💵 ${periodo}</div>
+        <div style="font-size:10px;color:#888;margin-top:6px">Emitido: ${fmtF(today())}</div>
+      </div>
+    </div>
+
+    <div class="worker-box">
+      <div>
+        <div class="worker-name">👷 ${mec.nombre}</div>
+        ${mec.rut?`<div class="worker-rut">RUT: ${mec.rut}</div>`:''}
+        ${mec.especialidad?`<div class="worker-rut">${mec.especialidad}</div>`:''}
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:10px;color:#888">Total anticipos</div>
+        <div style="font-size:22px;font-weight:700;font-family:monospace;color:#b85c1a">${fmt(total)}</div>
+      </div>
+    </div>
+
+    <div class="section-lbl">Detalle de anticipos — ${periodo}</div>
+    <table>
+      <thead><tr><th>#</th><th>Fecha</th><th>Mes descuento</th><th>Descripción</th><th style="text-align:right">Monto</th></tr></thead>
+      <tbody>
+        ${lista.map((a,i)=>`<tr>
+          <td style="color:#888">${i+1}</td>
+          <td>${fmtF(a.fecha)||'—'}</td>
+          <td>${a.mes} ${a.anio}</td>
+          <td>${a.desc||'Anticipo'}</td>
+          <td style="text-align:right;font-family:monospace;font-weight:600">${fmt(a.monto)}</td>
+        </tr>`).join('')}
+        <tr class="total-row"><td colspan="4">TOTAL RECIBIDO</td><td class="monto">${fmt(total)}</td></tr>
+      </tbody>
+    </table>
+
+    <div class="aviso">⚠ El trabajador declara haber recibido los montos indicados como anticipos de sueldo durante el período señalado. Este documento es respaldo de ambas partes.</div>
+
+    <div class="firma-section">
+      <div class="firma-block">
+        <div class="lbl">Firma del trabajador</div>
+        <div style="height:36px"></div>
+        <div class="firma-line">${mec.nombre}<br>RUT: ${mec.rut||'___________________'}</div>
+      </div>
+      <div class="firma-block">
+        <div class="lbl">Firma empleador / Administrador</div>
+        <div style="height:36px"></div>
+        <div class="firma-line">${cfg.nombre||'Taller Mecánico'}<br>${cfg.rut?'RUT: '+cfg.rut:''}</div>
+      </div>
+    </div>
+
+    <div class="footer">${cfg.nombre||'Taller Mecánico'} · Comprobante emitido el ${fmtF(today())}</div>
+  </div>`;
+}
+
 function filtrarAntSemana(){
   const desde=$('ant-pdf-desde').value||'';
   const hasta=$('ant-pdf-hasta').value||'';
@@ -5779,9 +6010,13 @@ function calcCuotaCreditoMec(mecId, mes, anio){
   let total=0;
   DB.creditosMec.filter(c=>c.mecanicoId===mecId&&c.estado!=='Pagado').forEach(c=>{
     const cuotas=c.cuotasPlan||[];
+    console.log('[CREDITO]',c.desc,'cuotas:',cuotas.map(cu=>`mes=${cu.mes}(tipo:${typeof cu.mes}) anio=${cu.anio}(tipo:${typeof cu.anio}) pagado=${cu.pagado}`));
+    console.log('[BUSCA] mes='+mes+'(tipo:'+typeof mes+') anio='+anio+'(tipo:'+typeof anio+')');
     const cuota=cuotas.find(cu=>cu.mes===mes&&parseInt(cu.anio)===parseInt(anio)&&!cu.pagado);
+    console.log('[RESULTADO] cuota encontrada:',cuota);
     if(cuota)total+=cuota.monto;
   });
+  console.log('[TOTAL CUOTA CREDITO]',total);
   return total;
 }
 
@@ -6229,6 +6464,31 @@ function desmarcarCuotaCredito(creditoId, cuotaIdx){
 }
 
 // Auto-apply monthly credit installments (called on nav to anticipos)
+function cambiarPinAdmin(){
+  const actual=($('cfg-pin-admin-actual')?.value||'').trim();
+  const nuevo=($('cfg-pin-admin-nuevo')?.value||'').trim();
+  const rep=($('cfg-pin-admin-rep')?.value||'').trim();
+  if(actual!==getPinAdmin()){toast('⛔ PIN actual incorrecto','err');return;}
+  if(!/^\d{4}$/.test(nuevo)){toast('El nuevo PIN debe ser exactamente 4 dígitos','err');return;}
+  if(nuevo!==rep){toast('Los PINes no coinciden','err');return;}
+  if(nuevo===getPinVendedor()){toast('El PIN admin no puede ser igual al PIN vendedor','err');return;}
+  localStorage.setItem('rpm_pin_admin',nuevo);
+  ['cfg-pin-admin-actual','cfg-pin-admin-nuevo','cfg-pin-admin-rep'].forEach(i=>{if($(i))$(i).value='';});
+  toast('✅ PIN de administrador actualizado');
+}
+function cambiarPinVendedor(){
+  const adminConf=($('cfg-pin-vend-admin')?.value||'').trim();
+  const nuevo=($('cfg-pin-vend-nuevo')?.value||'').trim();
+  const rep=($('cfg-pin-vend-rep')?.value||'').trim();
+  if(adminConf!==getPinAdmin()){toast('⛔ PIN de administrador incorrecto','err');return;}
+  if(!/^\d{4}$/.test(nuevo)){toast('El nuevo PIN debe ser exactamente 4 dígitos','err');return;}
+  if(nuevo!==rep){toast('Los PINes no coinciden','err');return;}
+  if(nuevo===getPinAdmin()){toast('El PIN vendedor no puede ser igual al PIN admin','err');return;}
+  localStorage.setItem('rpm_pin_vendedor',nuevo);
+  ['cfg-pin-vend-admin','cfg-pin-vend-nuevo','cfg-pin-vend-rep'].forEach(i=>{if($(i))$(i).value='';});
+  toast('✅ PIN de vendedor actualizado');
+}
+
 function aplicarCuotasCredito(){
   if(!DB.creditosMec)return;
   const hoy=today();
@@ -6999,8 +7259,16 @@ window._navActions={};
 // ══════════════════════════════════════════════════
 // PIN DE ACCESO
 // ══════════════════════════════════════════════════
-const PIN_CORRECTO='1749';
+// ══════════════════════════════════════════════════
+// SISTEMA DE ROLES — PIN dual (Administrador / Vendedor)
+// ══════════════════════════════════════════════════
 const PIN_KEY='rpm_pin_ok';
+const ROLE_KEY='rpm_role'; // 'admin' | 'vendedor'
+const MODULES_BLOQUEADOS=['anticipos','vacaciones','reportes','config','gastos'];
+
+function getPinAdmin(){return localStorage.getItem('rpm_pin_admin')||'1749';}
+function getPinVendedor(){return localStorage.getItem('rpm_pin_vendedor')||'1120';}
+
 let _pinBuffer='';
 
 function pinKey(k){
@@ -7009,23 +7277,28 @@ function pinKey(k){
   } else if(k!==''&&_pinBuffer.length<4){
     _pinBuffer+=k;
   }
-  // Update dots
   const dots=document.querySelectorAll('.pin-dot');
   dots.forEach((d,i)=>d.classList.toggle('filled',i<_pinBuffer.length));
-  // Auto-check when 4 digits entered
   if(_pinBuffer.length===4){
     setTimeout(()=>{
-      if(_pinBuffer===PIN_CORRECTO){
+      const pinAdmin=getPinAdmin();
+      const pinVendedor=getPinVendedor();
+      if(_pinBuffer===pinAdmin){
         sessionStorage.setItem(PIN_KEY,'1');
+        sessionStorage.setItem(ROLE_KEY,'admin');
         const overlay=$('pin-overlay');
-        if(overlay){overlay.style.transition='opacity .4s';overlay.style.opacity='0';setTimeout(()=>overlay.remove(),400);}
+        if(overlay){overlay.style.transition='opacity .4s';overlay.style.opacity='0';setTimeout(()=>{overlay.remove();aplicarRol();},400);}
+      } else if(_pinBuffer===pinVendedor){
+        sessionStorage.setItem(PIN_KEY,'1');
+        sessionStorage.setItem(ROLE_KEY,'vendedor');
+        const overlay=$('pin-overlay');
+        if(overlay){overlay.style.transition='opacity .4s';overlay.style.opacity='0';setTimeout(()=>{overlay.remove();aplicarRol();},400);}
       } else {
         $('pin-error').textContent='PIN incorrecto. Intenta de nuevo.';
         const dots=document.querySelectorAll('.pin-dot');
         dots.forEach(d=>{d.classList.add('error');d.classList.remove('filled');});
-        // Shake animation on card
         const card=document.querySelector('.pin-panel');
-        if(card){card.style.animation='none';card.style.transform='translateX(8px)';setTimeout(()=>{card.style.transition='transform .08s';card.style.transform='translateX(-8px)';setTimeout(()=>{card.style.transform='translateX(4px)';setTimeout(()=>{card.style.transform='';},80);},80);},0);}
+        if(card){card.style.transform='translateX(8px)';setTimeout(()=>{card.style.transition='transform .08s';card.style.transform='translateX(-8px)';setTimeout(()=>{card.style.transform='translateX(4px)';setTimeout(()=>{card.style.transform='';},80);},80);},0);}
         setTimeout(()=>{
           _pinBuffer='';
           dots.forEach(d=>{d.classList.remove('error','filled');});
@@ -7035,7 +7308,46 @@ function pinKey(k){
     },150);
   }
 }
-// Keyboard input for PIN
+
+function aplicarRol(){
+  const role=sessionStorage.getItem(ROLE_KEY)||'vendedor';
+  const esAdmin=role==='admin';
+  // Show/hide sidebar items based on role
+  MODULES_BLOQUEADOS.forEach(mod=>{
+    const btn=document.querySelector(`[onclick*="nav('${mod}'"]`);
+    if(btn)btn.style.display=esAdmin?'':'none';
+  });
+  // Show role indicator in topbar
+  const tb=document.querySelector('.topbar-right');
+  if(tb){
+    const existing=$('role-badge');
+    if(existing)existing.remove();
+    const badge=document.createElement('span');
+    badge.id='role-badge';
+    badge.style.cssText='font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;margin-right:4px;'+(esAdmin?'background:var(--accent);color:#fff':'background:var(--surface2);color:var(--text2)');
+    badge.textContent=esAdmin?'🔑 Admin':'👤 Vendedor';
+    tb.prepend(badge);
+  }
+  // If current section is blocked, redirect to dashboard
+  const activeSec=document.querySelector('.section.active');
+  if(activeSec&&!esAdmin){
+    const secId=activeSec.id.replace('sec-','');
+    if(MODULES_BLOQUEADOS.includes(secId))nav('dashboard',null);
+  }
+}
+
+function esAdmin(){return sessionStorage.getItem(ROLE_KEY)==='admin';}
+
+// Guard nav() so blocked modules can't be accessed by vendedor
+const _navOriginal=nav;
+function navConRol(id,btn){
+  if(!esAdmin()&&MODULES_BLOQUEADOS.includes(id)){
+    toast('⛔ Acceso restringido — solo administradores','err');
+    return;
+  }
+  _navOriginal(id,btn);
+}
+
 document.addEventListener('keydown',e=>{
   const overlay=$('pin-overlay');
   if(!overlay)return;
@@ -7043,10 +7355,11 @@ document.addEventListener('keydown',e=>{
   else if(e.key==='Backspace')pinKey('⌫');
   else if(e.key==='Enter'&&_pinBuffer.length===4)pinKey('');
 });
-// Check session
+
 (()=>{
   if(sessionStorage.getItem(PIN_KEY)==='1'){
     const o=$('pin-overlay');if(o)o.remove();
+    setTimeout(aplicarRol,100);
   }
 })();
 
@@ -7106,6 +7419,7 @@ window._navActions={
     poblarSel('ant-mec',DB.mecanicos.filter(m=>m.estado==='Activo'),'nombre');
     poblarSel('cred-mec',DB.mecanicos.filter(m=>m.estado==='Activo'),'nombre');
     poblarSel('ant-pdf-mec',DB.mecanicos,'nombre');
+    poblarSel('ant-pdf-mec-ind',DB.mecanicos.filter(m=>m.estado==='Activo'),'nombre');
     setToday('ant-fecha');
     const mo=new Date().getMonth();
     if($('ant-mes'))$('ant-mes').selectedIndex=mo;
