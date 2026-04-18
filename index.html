@@ -5959,6 +5959,8 @@ function renderResumenAnt(){
       <div style="background:var(--surface2);border-radius:var(--radius);padding:10px 14px;margin-bottom:10px">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:8px">Desglose del mes</div>
         <div style="display:flex;flex-direction:column;gap:5px;font-size:13px">
+
+          <!-- HABERES -->
           <div style="display:flex;justify-content:space-between">
             <span style="color:var(--text2)">Sueldo base</span>
             <span style="font-family:'DM Mono',monospace;font-weight:600">${fmt(sueldo)}</span>
@@ -5967,26 +5969,40 @@ function renderResumenAnt(){
             <span style="color:var(--green)">+ Comisión OTs (${m.comisionPct||2.8}% · ${otsMes.length} OT${otsMes.length!==1?'s':''})</span>
             <span style="font-family:'DM Mono',monospace;font-weight:600;color:var(--green)">+${fmt(comision)}</span>
           </div>
-          <div style="border-top:1px solid var(--border);margin:3px 0;padding-top:5px;display:flex;justify-content:space-between;font-weight:700">
-            <span>= Bruto</span>
+          <div style="border-top:1px solid var(--border);margin:2px 0;padding-top:5px;display:flex;justify-content:space-between;font-weight:700">
+            <span>= Sueldo bruto</span>
             <span style="font-family:'DM Mono',monospace">${fmt(bruto)}</span>
           </div>
+
+          <!-- ANTICIPOS -->
           ${anticipos>0?`<div style="display:flex;justify-content:space-between">
             <span style="color:var(--amber)">− Anticipos del mes</span>
             <span style="font-family:'DM Mono',monospace;font-weight:600;color:var(--amber)">-${fmt(anticipos)}</span>
+          </div>
+          <div style="border-top:1px dashed var(--border);margin:2px 0;padding-top:5px;display:flex;justify-content:space-between;font-weight:600;color:var(--text2);font-size:12px">
+            <span>= Saldo disponible</span>
+            <span style="font-family:'DM Mono',monospace">${fmt(bruto-anticipos)}</span>
           </div>`:''}
+
+          <!-- CUOTAS CRÉDITO (se descuentan del saldo disponible) -->
           ${creditosMes.map(cr=>`
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="color:var(--red)">− Cuota crédito: <em style="font-style:normal;font-size:11px">${cr.desc}</em>
-              ${cr.cuota.fecha?`<span style="font-size:10px;color:var(--text3)"> · vence ${fmtF(cr.cuota.fecha)}</span>`:''}
-              ${cr.cuota.pagado?`<span class="badge b-green" style="font-size:9px;margin-left:4px">✓ Pagada</span>`:`<button class="btn btn-xs btn-green" style="margin-left:6px;padding:2px 8px" onclick="pagarCuotaCredito('${cr.creditoId}',${cr.creditoId?((DB.creditosMec||[]).find(x=>x.id===cr.creditoId)?.cuotasPlan||[]).findIndex(cu=>cu.mes===mes&&cu.anio===anio):0})">✓ Marcar pagada</button>`}
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+            <span style="color:var(--red)">
+              − Cuota crédito: <em style="font-style:normal;font-size:11px;font-weight:600">${cr.desc}</em>
+              ${cr.cuota.fecha?`<span style="font-size:10px;color:var(--text3)"> · ${fmtF(cr.cuota.fecha)}</span>`:''}
+              ${cr.cuota.pagado
+                ?`<span class="badge b-green" style="font-size:9px;margin-left:4px">✓ Pagada</span>`
+                :`<button class="btn btn-xs btn-green" style="margin-left:6px;padding:2px 8px;font-size:10px" onclick="pagarCuotaCredito('${cr.creditoId}',${(DB.creditosMec||[]).find(x=>x.id===cr.creditoId)?.cuotasPlan?.findIndex(cu=>cu.mes===mes&&cu.anio===anio)??0})">✓ Marcar pagada</button>`}
             </span>
-            <span style="font-family:'DM Mono',monospace;font-weight:600;color:${cr.cuota.pagado?'var(--text3)':'var(--red)'}${cr.cuota.pagado?';text-decoration:line-through':''}">-${fmt(cr.cuota.monto)}</span>
+            <span style="font-family:'DM Mono',monospace;font-weight:600;white-space:nowrap;color:${cr.cuota.pagado?'var(--text3)':'var(--red)'}${cr.cuota.pagado?';text-decoration:line-through':''}">-${fmt(cr.cuota.monto)}</span>
           </div>`).join('')}
-          ${descuentos>0?`<div style="border-top:1px solid var(--border);margin:3px 0;padding-top:5px;display:flex;justify-content:space-between;color:var(--red)">
-            <span>= Total descuentos</span>
-            <span style="font-family:'DM Mono',monospace;font-weight:600">-${fmt(descuentos)}</span>
-          </div>`:''}
+
+          <!-- LÍQUIDO FINAL -->
+          <div style="border-top:2px solid var(--border);margin:4px 0;padding-top:6px;display:flex;justify-content:space-between;font-weight:700;font-size:14px">
+            <span style="color:${aPagar>0?'var(--green)':'var(--red)'}">= LÍQUIDO A PAGAR</span>
+            <span style="font-family:'DM Mono',monospace;color:${aPagar>0?'var(--green)':'var(--red)'}">${fmt(aPagar)}</span>
+          </div>
+
         </div>
       </div>
 
