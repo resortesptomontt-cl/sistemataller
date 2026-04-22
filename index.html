@@ -4186,7 +4186,7 @@ function renderInformeVeh(){
       <div style="margin-top:4px">
         <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text2);margin-bottom:6px">Evolución de kilometraje</div>
         <div class="tw"><table><thead><tr><th>Fecha</th><th>N° Orden</th><th>Km ingreso</th><th>Trabajo</th></tr></thead><tbody>
-          ${kmHistorial.map(o=>`<tr><td>${o.fechaIn||'—'}</td><td><span class="folio-tag" onclick="verOTRapido('${o.folio}')" style="cursor:pointer;text-decoration:underline" title="Ver OT">${o.folio}</span></td><td style="font-family:'DM Mono',monospace;font-weight:600">${fmtN(o.km)} km</td><td>${(o.diag||o.obs||'').slice(0,50)||'—'}</td></tr>`).join('')}
+          ${kmHistorial.map(o=>`<tr><td>${o.fechaIn||'—'}</td><td style="white-space:nowrap"><span class="folio-tag">${o.folio}</span> <button onclick="verOTRapido('${o.folio}')" class="btn btn-xs btn-primary">Ver OT</button></td><td style="font-family:'DM Mono',monospace;font-weight:600">${fmtN(o.km)} km</td><td>${(o.diag||o.obs||'').slice(0,50)||'—'}</td></tr>`).join('')}
         </tbody></table></div>
       </div>`:''}
   </div>
@@ -4203,7 +4203,10 @@ function renderTablaOTs(lista){
     lista.map(o=>{
       const venc=o.fechaEst&&o.fechaEst<hoy&&o.estado!=='Listo'&&o.estado!=='Entregado';
       return`<tr>
-        <td><span class="folio-tag" onclick="verOTRapido('${o.folio}')" style="cursor:pointer;text-decoration:underline" title="Clic para ver detalle">${o.folio}</span></td>
+        <td style="white-space:nowrap">
+          <span class="folio-tag">${o.folio}</span>
+          <button onclick="verOTRapido('${o.folio}')" class="btn btn-xs btn-primary" style="margin-left:5px">Ver OT</button>
+        </td>
         <td>${o.fechaIn||'—'}</td>
         <td><span class="status ${venc?'s-vencido':statusClass(o.estado)}">${venc?'Vencido':o.estado}</span></td>
         <td>${o.mecanico||'—'}</td>
@@ -5462,7 +5465,9 @@ function verOTRapido(folio){
         ${o.imgs.map((img,ix)=>`<img src="${img}" onclick="abrirLightbox(${JSON.stringify(o.imgs)},${ix})" style="width:70px;height:55px;object-fit:cover;border-radius:var(--radius);cursor:pointer;border:1px solid var(--border)">`).join('')}
       </div>`:''}
   `;
-  $('modal-ot-preview').style.display='flex';
+  const modal=$('modal-ot-preview');
+  if(!modal){toast('Error: modal no encontrado','err');return;}
+  modal.style.display='flex';
   document.body.style.overflow='hidden';
 }
 function cerrarOTPreview(){
