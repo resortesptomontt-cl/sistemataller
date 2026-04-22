@@ -5398,8 +5398,6 @@ function borrarTodo(){
 // PDF — IMPRESIÓN OT, COTIZACIÓN Y VENTAS
 // ══════════════════════════════════════════════════
 function cerrarPrint(){$('modal-print').style.display='none';document.body.style.overflow='';}
-function abrirPrint(titulo,html){
-
 function verOTRapido(folio){
   const o=DB.ordenes.find(x=>x.folio===folio);
   if(!o){toast('OT no encontrada','err');return;}
@@ -5471,25 +5469,54 @@ function cerrarOTPreview(){
   $('modal-ot-preview').style.display='none';
   document.body.style.overflow='';
 }
+function abrirPrint(titulo,html){
   $('modal-print-title').textContent=titulo;
   $('print-content').innerHTML=html;
   $('modal-print').style.display='flex';
   document.body.style.overflow='hidden';
 }
+function dosCopiasHtml(html){
+  // Wrap the document HTML into 2 identical copies separated by a page break
+  return`<style>
+    @page{margin:10mm;size:auto}
+    .copia-sep{page-break-after:always;break-after:page}
+    .copia-label{font-size:9px;color:#aaa;text-align:right;padding:3px 0 0;font-family:Arial,sans-serif}
+  </style>
+  <div class="copia-sep">
+    <div class="copia-label">Copia 1 de 2</div>
+    ${html}
+  </div>
+  <div>
+    <div class="copia-label">Copia 2 de 2</div>
+    ${html}
+  </div>`;
+}
 function imprimirOT(folio){
   const o=DB.ordenes.find(x=>x.folio===folio);if(!o)return;
   const v=o.vehiculoId?DB.vehiculos.find(x=>x.id===o.vehiculoId):null;
-  abrirPrint(`Orden de Trabajo ${o.folio}`,buildDocOT(o,v));
+  const html=buildDocOT(o,v);
+  const win=window.open('','_blank','width=860,height=1100');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>OT ${o.folio}</title></head><body>${dosCopiasHtml(html)}</body></html>`);
+  win.document.close();win.focus();
+  setTimeout(()=>{win.print();},500);
 }
 function imprimirCot(folio){
   const c=DB.cotizaciones.find(x=>x.folio===folio);if(!c)return;
   const v=c.vehiculoId?DB.vehiculos.find(x=>x.id===c.vehiculoId):null;
-  abrirPrint(`Cotización ${c.folio}`,buildDocCot(c,v));
+  const html=buildDocCot(c,v);
+  const win=window.open('','_blank','width=860,height=1100');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>COT ${c.folio}</title></head><body>${dosCopiasHtml(html)}</body></html>`);
+  win.document.close();win.focus();
+  setTimeout(()=>{win.print();},500);
 }
 function imprimirVenta(folio){
   const v=DB.ventas.find(x=>x.folio===folio);if(!v)return;
   const vh=v.vehiculoId?DB.vehiculos.find(x=>x.id===v.vehiculoId):null;
-  abrirPrint(`Boleta de venta ${v.folio}`,buildDocVenta(v,vh));
+  const html=buildDocVenta(v,vh);
+  const win=window.open('','_blank','width=860,height=1100');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>VT ${v.folio}</title></head><body>${dosCopiasHtml(html)}</body></html>`);
+  win.document.close();win.focus();
+  setTimeout(()=>{win.print();},500);
 }
 function previsualizarDoc(tipo){
   if(tipo==='ot'){
