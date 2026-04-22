@@ -2429,6 +2429,70 @@ function acKey(e,ctx){
 }
 
 // ── Agregar ítem OT (inventario O libre) ─────────────
+
+function addLineaCot(){
+  const nombre=($('cot-prod-txt')?.value||'').trim();
+  const pid=$('cot-prod-id')?.value||null;
+  const qty=parseFloat($('cot-qty')?.value)||0;
+  const pu=parseFloat($('cot-pu')?.value)||0;
+  const uni=$('cot-prod-uni')?.value||'und';
+  if(!nombre){toast('Escribe el nombre del producto o servicio','err');return;}
+  if(qty<=0){toast('La cantidad debe ser mayor a 0','err');return;}
+  const prod=pid?DB.inventario.find(p=>p.id===pid):null;
+  lines.cot.push({
+    pid:prod?.id||null,nombre:prod?prod.nombre:nombre,
+    unidad:prod?prod.unidad:uni,cat:prod?.categoria||'Libre',
+    qty,pu,sub:qty*pu,libre:!prod
+  });
+  renderLineas('cot');
+  if($('cot-prod-txt'))$('cot-prod-txt').value='';
+  if($('cot-prod-id'))$('cot-prod-id').value='';
+  if($('cot-pu'))$('cot-pu').value='';
+  if($('cot-qty'))$('cot-qty').value=1;
+  if($('cot-ac-drop'))$('cot-ac-drop').style.display='none';
+  $('cot-prod-txt')?.focus();
+}
+
+let _acCotIdx=-1;
+function acSearchCot(){
+  const q=($('cot-prod-txt')?.value||'').trim().toLowerCase();
+  const drop=$('cot-ac-drop');if(!drop)return;
+  if(!q){drop.style.display='none';return;}
+  const hits=DB.inventario.filter(p=>p.nombre.toLowerCase().includes(q)).slice(0,8);
+  let html=hits.map(p=>`<div class="ac-item" onmousedown="acSelCotProd('${p.id}')">
+    <div><span class="ac-item-name">${p.nombre}</span> <span class="ac-badge-new">${p.unidad}</span></div>
+    <div><span class="ac-item-meta">${p.categoria||''} · ${fmt(p.precio)}</span></div>
+  </div>`).join('');
+  html+=`<div class="ac-item ac-item-new" onmousedown="acSelCotLibre()">
+    <div><span class="ac-item-name" style="color:var(--accent2)">➕ Agregar "${$('cot-prod-txt').value.trim()}" como ítem libre</span></div>
+    <div><span class="ac-badge-new">sin inventario</span></div>
+  </div>`;
+  drop.innerHTML=html;drop.style.display='block';_acCotIdx=-1;
+}
+function acSelCotProd(id){
+  const p=DB.inventario.find(x=>x.id===id);if(!p)return;
+  if($('cot-prod-txt'))$('cot-prod-txt').value=p.nombre;
+  if($('cot-prod-id'))$('cot-prod-id').value=p.id;
+  if($('cot-pu'))$('cot-pu').value=p.precio;
+  if($('cot-prod-uni'))$('cot-prod-uni').value=p.unidad;
+  if($('cot-ac-drop'))$('cot-ac-drop').style.display='none';
+  $('cot-qty')?.focus();
+}
+function acSelCotLibre(){
+  if($('cot-prod-id'))$('cot-prod-id').value='';
+  if($('cot-ac-drop'))$('cot-ac-drop').style.display='none';
+  $('cot-qty')?.focus();
+}
+function acHideCot(){if($('cot-ac-drop'))$('cot-ac-drop').style.display='none';}
+function acKeyCot(e){
+  const drop=$('cot-ac-drop');if(!drop||drop.style.display==='none')return;
+  const items=drop.querySelectorAll('.ac-item');if(!items.length)return;
+  if(e.key==='ArrowDown'){e.preventDefault();_acCotIdx=Math.min(_acCotIdx+1,items.length-1);items.forEach((it,i)=>it.classList.toggle('ac-active',i===_acCotIdx));}
+  else if(e.key==='ArrowUp'){e.preventDefault();_acCotIdx=Math.max(_acCotIdx-1,0);items.forEach((it,i)=>it.classList.toggle('ac-active',i===_acCotIdx));}
+  else if(e.key==='Enter'){e.preventDefault();if(_acCotIdx>=0&&items[_acCotIdx])items[_acCotIdx].dispatchEvent(new MouseEvent('mousedown'));else addLineaCot();}
+  else if(e.key==='Escape')acHideCot();
+}
+
 function addLineaOT(){
   const nombre=($('ot-prod-txt')?.value||'').trim();
   const pid=$('ot-prod-id').value||null;
