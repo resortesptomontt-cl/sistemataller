@@ -2552,17 +2552,32 @@ function renderLineas(ctx){
     wrap.innerHTML='<div class="empty" style="padding:16px"><div class="empty-icon">📋</div>Sin ítems</div>';
     renderTotalesWrap(ctx);return;
   }
+  const INP='padding:3px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;background:var(--bg);color:var(--text);outline:none';
   wrap.innerHTML='<div class="tw"><table><thead><tr><th>Producto</th><th>Cant.</th><th>Unidad</th><th>P.Unit. (neto)</th><th style="text-align:center">Dto %</th><th style="text-align:center">IVA 19%</th><th class="tr">Subtotal</th><th></th></tr></thead><tbody>'+
     lines[ctx].map((l,i)=>{
-      const dto     = l.dto||0;
-      const subDto  = Math.round(l.qty * l.pu * (1 - dto/100));
-      const ivaAmt  = l.iva ? Math.round(subDto * 0.19) : 0;
-      const total   = subDto + ivaAmt;
+      const dto    = l.dto||0;
+      const subDto = Math.round(l.qty * l.pu * (1 - dto/100));
+      const ivaAmt = l.iva ? Math.round(subDto * 0.19) : 0;
+      const total  = subDto + ivaAmt;
       return`<tr>
         <td style="font-weight:500">${l.nombre}${l.libre?` <span class="ac-badge-new">libre</span>`:''}</td>
-        <td>${l.qty}</td>
-        <td>${l.unidad}</td>
-        <td style="font-family:'DM Mono',monospace">${fmt(l.pu)}</td>
+        <td>
+          <input type="number" value="${l.qty}" min="0.01" step="0.01"
+            style="width:60px;${INP};font-family:'DM Mono',monospace;text-align:center"
+            onchange="setLineaField('${ctx}',${i},'qty',parseFloat(this.value)||1)">
+        </td>
+        <td>
+          <select style="${INP};min-width:70px"
+            onchange="setLineaField('${ctx}',${i},'unidad',this.value)">
+            ${['und','lt','kg','m','caja','par','set','hrs'].map(u=>`<option value="${u}" ${l.unidad===u?'selected':''}>${u}</option>`).join('')}
+            ${!['und','lt','kg','m','caja','par','set','hrs'].includes(l.unidad)?`<option value="${l.unidad}" selected>${l.unidad}</option>`:''}
+          </select>
+        </td>
+        <td>
+          <input type="number" value="${l.pu}" min="0"
+            style="width:90px;${INP};font-family:'DM Mono',monospace;text-align:right"
+            onchange="setLineaField('${ctx}',${i},'pu',parseFloat(this.value)||0)">
+        </td>
         <td style="text-align:center;width:80px">
           <div style="display:flex;align-items:center;gap:2px;justify-content:center">
             <input type="number" value="${dto||''}" min="0" max="100" step="1" placeholder="0"
@@ -2587,6 +2602,17 @@ function renderLineas(ctx){
         <td><button class="btn btn-xs btn-red" onclick="delLinea('${ctx}',${i})">✕</button></td>
       </tr>`;
     }).join('')+'</tbody></table></div>';
+  renderTotalesWrap(ctx);
+}
+
+function setLineaField(ctx,i,field,val){
+  if(!lines[ctx][i])return;
+  lines[ctx][i][field]=val;
+  // Recalc sub
+  const l=lines[ctx][i];
+  const dto=l.dto||0;
+  const sub=Math.round(l.qty*l.pu*(1-dto/100));
+  l.sub=sub+(l.iva?Math.round(sub*0.19):0);
   renderTotalesWrap(ctx);
 }
 
