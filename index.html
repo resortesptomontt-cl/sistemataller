@@ -6458,15 +6458,14 @@ function resetComisionAjustada(mecId, mes, anio){
 function calcCuotaCreditoMec(mecId, mes, anio){
   if(!DB.creditosMec)DB.creditosMec=[];
   let total=0;
+  const anioN=parseInt(anio);
   DB.creditosMec.filter(c=>c.mecanicoId===mecId&&c.estado!=='Pagado').forEach(c=>{
-    const cuotas=c.cuotasPlan||[];
-    console.log('[CREDITO]',c.desc,'cuotas:',cuotas.map(cu=>`mes=${cu.mes}(tipo:${typeof cu.mes}) anio=${cu.anio}(tipo:${typeof cu.anio}) pagado=${cu.pagado}`));
-    console.log('[BUSCA] mes='+mes+'(tipo:'+typeof mes+') anio='+anio+'(tipo:'+typeof anio+')');
-    const cuota=cuotas.find(cu=>cu.mes===mes&&parseInt(cu.anio)===parseInt(anio)&&!cu.pagado);
-    console.log('[RESULTADO] cuota encontrada:',cuota);
-    if(cuota)total+=cuota.monto;
+    (c.cuotasPlan||[]).forEach(cu=>{
+      if(String(cu.mes).trim()===String(mes).trim() && parseInt(cu.anio)===anioN && !cu.pagado){
+        total+=cu.monto;
+      }
+    });
   });
-  console.log('[TOTAL CUOTA CREDITO]',total);
   return total;
 }
 
@@ -6509,12 +6508,14 @@ function renderResumenAnt(){
 
     // Build credit rows for this month
     const creditosMes=[];
+    const anioN2=parseInt(anio);
     creditosActivos.forEach(c=>{
-      const cuota=c.cuotasPlan.find(cu=>cu.mes===mes&&parseInt(cu.anio)===parseInt(anio));
-      if(cuota){
-        creditosMes.push({creditoId:c.id,desc:c.desc,cuota,
-          saldo:c.saldo,ncuotas:c.ncuotas,pagadas:c.cuotasPlan.filter(x=>x.pagado).length});
-      }
+      (c.cuotasPlan||[]).forEach((cuota,idx)=>{
+        if(String(cuota.mes).trim()===String(mes).trim()&&parseInt(cuota.anio)===anioN2){
+          creditosMes.push({creditoId:c.id,desc:c.desc,cuota,cuotaIdx:idx,
+            saldo:c.saldo,ncuotas:c.ncuotas,pagadas:c.cuotasPlan.filter(x=>x.pagado).length});
+        }
+      });
     });
 
     // All pending credits (not just this month) for the "loans" table
@@ -6599,7 +6600,7 @@ function renderResumenAnt(){
               <span style="font-family:'DM Mono',monospace;font-weight:700;color:${cr.cuota.pagado?'var(--green)':'var(--red)'}${cr.cuota.pagado?';text-decoration:line-through':''}">-${fmt(cr.cuota.monto)}</span>
               ${cr.cuota.pagado
                 ?`<span class="badge b-green" style="font-size:9px">✓ Pagada</span>`
-                :`<button class="btn btn-xs btn-green" style="padding:2px 8px;font-size:10px" onclick="pagarCuotaCredito('${cr.creditoId}',${(DB.creditosMec||[]).find(x=>x.id===cr.creditoId)?.cuotasPlan?.findIndex(cu=>cu.mes===mes&&parseInt(cu.anio)===parseInt(anio))??0})">✓ Marcar pagada</button>`}
+                :`<button class="btn btn-xs btn-green" style="padding:2px 8px;font-size:10px" onclick="pagarCuotaCredito('${cr.creditoId}',${cr.cuotaIdx})">✓ Marcar pagada</button>`}
             </div>
           </div>`).join('')}
 
