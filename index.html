@@ -3175,7 +3175,10 @@ function renderHistVehiculo(vid){
   if(!ots.length)return'<div style="font-size:12px;color:var(--text3);padding:8px 0">Sin historial de servicios aún</div>';
   return'<div class="tw"><table><thead><tr><th>N° Orden</th><th>Fecha</th><th>Km</th><th>Trabajo</th><th>Estado</th><th class="tr">Total</th></tr></thead><tbody>'+
     ots.map(o=>`<tr>
-      <td><span class="folio-tag">${o.folio}</span></td>
+      <td style="white-space:nowrap">
+        <span class="folio-tag">${o.folio}</span>
+        <button onclick="verOTRapido('${o.folio}')" class="btn btn-xs btn-primary" style="margin-left:5px">Ver OT</button>
+      </td>
       <td>${o.fechaIn||''}</td>
       <td style="font-family:'DM Mono',monospace">${o.km?fmtN(o.km)+' km':'—'}</td>
       <td>${(o.diag||'').slice(0,40)||'—'}</td>
