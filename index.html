@@ -983,8 +983,12 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
 <div id="sec-creditos" class="section">
   <div class="stats" id="cred-stats" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px"></div>
 
-  <div class="card">
-    <div class="card-title"><div class="card-title-left">Registrar crédito manual</div><span style="font-size:11px;color:var(--text2)">Los créditos también se generan automáticamente al registrar una venta con forma de pago "Crédito"</span></div>
+  <!-- Registrar crédito manual -->
+  <div class="card" style="margin-bottom:12px">
+    <div class="card-title">
+      <div class="card-title-left">Registrar crédito manual</div>
+      <span style="font-size:11px;color:var(--text2)">Los créditos también se generan al vender con forma de pago "Crédito"</span>
+    </div>
     <div class="g4" style="margin-bottom:10px">
       <div class="field"><label>Cliente *</label><select id="cr-cli"><option value="">— Seleccionar —</option></select></div>
       <div class="field"><label>Monto ($) *</label><input id="cr-monto" type="number" placeholder="0" min="0"></div>
@@ -992,22 +996,28 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
       <div class="field"><label>Fecha vencimiento</label><input id="cr-vcto" type="date"></div>
       <div class="field" style="grid-column:1/-1"><label>Descripción / motivo</label><input id="cr-desc" placeholder="Ej: Servicio N° OT-0012, arreglo motor..."></div>
     </div>
-    <div style="display:flex;gap:6px"><button class="btn btn-primary" onclick="guardarCredito()">✓ Registrar crédito</button><button class="btn" onclick="limpiarCR()">↺ Limpiar</button></div>
+    <div style="display:flex;gap:6px"><button class="btn btn-primary" onclick="guardarCredito()">✓ Registrar</button><button class="btn" onclick="limpiarCR()">↺ Limpiar</button></div>
   </div>
 
-  <div class="card">
-    <div class="card-title"><div class="card-title-left">Cuentas por cobrar</div></div>
-    <div class="sbar">
+  <!-- Tabs: Pendientes / Pagados -->
+  <div class="tabs" style="margin-bottom:0">
+    <button class="tab active" onclick="switchCredTab('pendiente',this)">⏳ Cuentas por cobrar</button>
+    <button class="tab" onclick="switchCredTab('pagado',this)">✅ Pagados / Cancelados</button>
+  </div>
+
+  <!-- Filtros -->
+  <div class="card" style="border-top-left-radius:0;border-top-right-radius:0;margin-top:0">
+    <div class="sbar" style="margin-bottom:10px">
       <input id="scr" placeholder="Buscar cliente, descripción..." oninput="renderCreditos()">
-      <select id="scr-est" onchange="renderCreditos()" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text);outline:none">
-        <option value="">Todos los estados</option>
-        <option value="Pendiente">Pendiente</option>
-        <option value="Vencido">Vencido</option>
-        <option value="Pagado parcial">Pagado parcial</option>
-        <option value="Pagado">Pagado</option>
-      </select>
     </div>
-    <div id="lista-creditos"></div>
+    <!-- Panel pendientes -->
+    <div id="cred-panel-pendiente">
+      <div id="lista-creditos"></div>
+    </div>
+    <!-- Panel pagados -->
+    <div id="cred-panel-pagado" style="display:none">
+      <div id="lista-creditos-pagados"></div>
+    </div>
   </div>
 </div>
 
@@ -4419,98 +4429,133 @@ function eliminarCredito(id){
   DB.creditos=DB.creditos.filter(c=>c.id!==id);
   save();renderCreditos();updateBadges();toast('Crédito eliminado');
 }
+function switchCredTab(tab, btn){
+  const esPend=tab==='pendiente';
+  $('cred-panel-pendiente').style.display=esPend?'block':'none';
+  $('cred-panel-pagado').style.display=esPend?'none':'block';
+  document.querySelectorAll('#sec-creditos .tab').forEach(t=>t.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+}
+
 function renderCreditos(){
   const hoy=today();
-  const en5dias=new Date();en5dias.setDate(en5dias.getDate()+5);
-  const en5str=en5dias.toISOString().slice(0,10);
+  const en5=new Date();en5.setDate(en5.getDate()+5);
+  const en5str=en5.toISOString().slice(0,10);
+  const fmtF=d=>{if(!d)return"—";const[y,m,dd]=d.split("-");return`${dd}/${m}/${y}`;};
 
-  // Sync estados
   DB.creditos.forEach(cr=>cr.estado=estadoCredito(cr));
 
-  // Stats
-  const pendientes=DB.creditos.filter(c=>c.estado!=='Pagado');
+  const pendientes=DB.creditos.filter(c=>c.estado!=="Pagado");
   const totalDeuda=pendientes.reduce((s,c)=>s+c.saldo,0);
-  const vencidos=DB.creditos.filter(c=>c.estado==='Vencido');
-  const totalVenc=vencidos.reduce((s,c)=>s+c.saldo,0);
-  const proxVencer=DB.creditos.filter(c=>c.estado!=='Pagado'&&c.vcto&&c.vcto>hoy&&c.vcto<=en5str);
-  const sc=$('cred-stats');
+  const vencidos=DB.creditos.filter(c=>c.estado==="Vencido");
+  const proxVencer=DB.creditos.filter(c=>c.estado!=="Pagado"&&c.vcto&&c.vcto>hoy&&c.vcto<=en5str);
+  const sc=$("cred-stats");
   if(sc)sc.innerHTML=`
-    <div class="stat"><div class="stat-lbl">Deuda total pendiente</div><div class="stat-val" style="color:var(--red)">${fmt(totalDeuda)}</div><div class="stat-sub">${pendientes.length} crédito${pendientes.length!==1?'s':''} activos</div></div>
-    <div class="stat"><div class="stat-lbl">Créditos vencidos</div><div class="stat-val" style="color:var(--red)">${fmt(totalVenc)}</div><div class="stat-sub">${vencidos.length} sin pagar</div></div>
-    ${proxVencer.length?`<div class="stat" style="border:1px solid var(--amber);background:var(--amber-light)"><div class="stat-lbl" style="color:var(--amber)">⚠ Vencen en 5 días</div><div class="stat-val" style="color:var(--amber)">${proxVencer.length}</div><div class="stat-sub">${fmt(proxVencer.reduce((s,c)=>s+c.saldo,0))}</div></div>`:''}
-    <div class="stat"><div class="stat-lbl">Total cobrado</div><div class="stat-val" style="color:var(--green)">${fmt(DB.creditos.reduce((s,c)=>s+(c.monto-c.saldo),0))}</div><div class="stat-sub">en abonos recibidos</div></div>`;
+    <div class="stat"><div class="stat-lbl">Deuda total pendiente</div><div class="stat-val" style="color:var(--red)">${fmt(totalDeuda)}</div><div class="stat-sub">${pendientes.length} cuenta${pendientes.length!==1?"s":""} activas</div></div>
+    <div class="stat"><div class="stat-lbl">Clientes con deuda</div><div class="stat-val" style="color:var(--amber)">${new Set(pendientes.map(c=>c.clienteId||c.clienteNombre)).size}</div><div class="stat-sub">clientes únicos</div></div>
+    <div class="stat"><div class="stat-lbl">Vencidos</div><div class="stat-val" style="color:var(--red)">${vencidos.length}</div><div class="stat-sub">${fmt(vencidos.reduce((s,c)=>s+c.saldo,0))}</div></div>
+    ${proxVencer.length?`<div class="stat" style="border:1px solid var(--amber);background:var(--amber-light)"><div class="stat-lbl" style="color:var(--amber)">⚠ Vencen pronto</div><div class="stat-val" style="color:var(--amber)">${proxVencer.length}</div><div class="stat-sub">próximos 5 días</div></div>`:""}
+    <div class="stat"><div class="stat-lbl">Total cobrado</div><div class="stat-val" style="color:var(--green)">${fmt(DB.creditos.reduce((s,c)=>s+(c.monto-c.saldo),0))}</div><div class="stat-sub">en abonos</div></div>`;
 
-  const q=($('scr')?.value||'').toLowerCase();
-  const est=$('scr-est')?.value||'';
-  let lista=[...DB.creditos];
-  if(q)lista=lista.filter(c=>c.clienteNombre.toLowerCase().includes(q)||c.desc.toLowerCase().includes(q));
-  if(est==='Vencido')lista=lista.filter(c=>c.estado==='Vencido');
-  else if(est)lista=lista.filter(c=>c.estado===est);
+  const q=($("scr")?.value||"").toLowerCase();
 
-  // Sort: unpaid first by vcto (earliest first), then paid last
-  lista.sort((a,b)=>{
-    if(a.estado==='Pagado'&&b.estado!=='Pagado')return 1;
-    if(b.estado==='Pagado'&&a.estado!=='Pagado')return -1;
-    const va=a.vcto||'9999-99-99', vb=b.vcto||'9999-99-99';
-    if(va!==vb)return va>vb?1:-1;
-    return a.clienteNombre.localeCompare(b.clienteNombre);
+  // ── PANEL PENDIENTES (agrupado por cliente) ──
+  const activos=DB.creditos.filter(c=>c.estado!=="Pagado");
+  const filtrados=q?activos.filter(c=>c.clienteNombre.toLowerCase().includes(q)||(c.desc||"").toLowerCase().includes(q)):activos;
+
+  const porCliente={};
+  filtrados.forEach(cr=>{
+    const key=cr.clienteId||cr.clienteNombre;
+    if(!porCliente[key])porCliente[key]={nombre:cr.clienteNombre,rut:cr.clienteRut||"",cuentas:[]};
+    porCliente[key].cuentas.push(cr);
   });
 
-  const el=$('lista-creditos');
-  if(!lista.length){el.innerHTML='<div class="empty"><div class="empty-icon">💳</div>No hay créditos registrados</div>';return;}
+  Object.values(porCliente).forEach(cli=>{
+    cli.cuentas.sort((a,b)=>(a.vcto||"9999")>(b.vcto||"9999")?1:-1);
+    cli.totalSaldo=cli.cuentas.reduce((s,c)=>s+c.saldo,0);
+    cli.tieneVencido=cli.cuentas.some(c=>c.estado==="Vencido");
+    cli.tieneProx=cli.cuentas.some(c=>c.vcto&&c.vcto>hoy&&c.vcto<=en5str);
+    cli.masAntigua=cli.cuentas[0]?.vcto||"";
+  });
 
-  const estClass={Pendiente:'s-pendiente',Vencido:'s-vencido','Pagado parcial':'s-proceso',Pagado:'s-entregado'};
-  el.innerHTML=lista.map(cr=>{
-    const venc=cr.vcto&&cr.vcto<hoy&&cr.estado!=='Pagado';
-    const proxAlert=cr.vcto&&cr.vcto>hoy&&cr.vcto<=en5str&&cr.estado!=='Pagado';
-    const diasFalta=cr.vcto?Math.ceil((new Date(cr.vcto)-new Date(hoy))/(1000*60*60*24)):null;
-    const pct=cr.monto>0?Math.round(((cr.monto-cr.saldo)/cr.monto)*100):0;
-    const fmtF=d=>{if(!d)return'—';const[y,m,dd]=d.split('-');return`${dd}/${m}/${y}`;};
-    let rowStyle='';
-    if(venc)rowStyle='border-left:3px solid var(--red)';
-    else if(proxAlert)rowStyle='border-left:3px solid var(--amber)';
-    else if(cr.estado==='Pagado')rowStyle='border-left:3px solid var(--green)';
-    return`
-    <div class="exp-row" style="${rowStyle}">
-      <div class="exp-hdr" onclick="toggle('cr-${cr.id}')">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span style="font-weight:600">${cr.clienteNombre}</span>
-          <span style="font-size:11px;color:var(--text2)">${cr.clienteRut||''}</span>
-          <span class="status ${estClass[cr.estado]||'s-pendiente'}">${cr.estado}</span>
-          ${cr.ventaFolio?`<span class="folio-tag" style="font-size:10px">${cr.ventaFolio}</span>`:''}
-          ${cr.vcto?`<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;
-            background:${venc?'var(--red-light)':proxAlert?'var(--amber-light)':'var(--surface2)'};
-            color:${venc?'var(--red)':proxAlert?'var(--amber)':'var(--text2)'}">
-            📅 ${fmtF(cr.vcto)}${venc?' · Vencido':(diasFalta!==null&&diasFalta<=5&&cr.estado!=='Pagado'?` · ${diasFalta}d`:'')}
-          </span>`:'<span style="font-size:11px;color:var(--text3)">Sin vencimiento</span>'}
-          ${proxAlert?`<span style="font-size:10px;font-weight:700;color:var(--amber);background:var(--amber-light);padding:2px 7px;border-radius:10px">⚠ Vence en ${diasFalta} día${diasFalta!==1?'s':''}</span>`:''}
-        </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div style="font-size:11px;color:var(--text2);margin-bottom:2px">Saldo: <strong style="color:${cr.saldo>0?'var(--red)':'var(--green)'};font-family:'DM Mono',monospace">${fmt(cr.saldo)}</strong> / ${fmt(cr.monto)}</div>
-          <div style="width:120px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-left:auto">
-            <div style="height:100%;width:${pct}%;background:${pct===100?'var(--green)':'var(--accent2)'};border-radius:3px;transition:width .3s"></div>
+  const clientesOrdenados=Object.values(porCliente).sort((a,b)=>{
+    if(a.tieneVencido&&!b.tieneVencido)return -1;
+    if(!a.tieneVencido&&b.tieneVencido)return 1;
+    return(a.masAntigua||"9999")>(b.masAntigua||"9999")?1:-1;
+  });
+
+  const el=$("lista-creditos");
+  if(!el)return;
+  if(!clientesOrdenados.length){
+    el.innerHTML="<div class=\"empty\"><div class=\"empty-icon\">✅</div>Sin cuentas por cobrar pendientes</div>";
+  } else {
+    el.innerHTML=clientesOrdenados.map((cli,ci)=>{
+      const bc=cli.tieneVencido?"var(--red)":cli.tieneProx?"var(--amber)":"var(--accent)";
+      return`<div style="border:1px solid var(--border);border-left:4px solid ${bc};border-radius:var(--radius);margin-bottom:12px;overflow:hidden;box-shadow:var(--shadow)">
+        <div onclick="toggle('cli-cred-${ci}')" style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;cursor:pointer;background:var(--surface2)">
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span style="font-size:15px;font-weight:700">👤 ${cli.nombre}</span>
+              ${cli.rut?`<span style="font-size:11px;color:var(--text2)">${cli.rut}</span>`:""}
+              ${cli.tieneVencido?`<span style="font-size:10px;font-weight:700;background:var(--red);color:#fff;padding:2px 8px;border-radius:10px">⚠ VENCIDO</span>`:""}
+              ${cli.tieneProx&&!cli.tieneVencido?`<span style="font-size:10px;font-weight:700;background:var(--amber);color:#fff;padding:2px 8px;border-radius:10px">⏰ Vence pronto</span>`:""}
+            </div>
+            <div style="font-size:11px;color:var(--text2);margin-top:3px">${cli.cuentas.length} cuenta${cli.cuentas.length!==1?"s":""} pendiente${cli.cuentas.length!==1?"s":""}</div>
           </div>
-          <div style="font-size:9px;color:var(--text3);margin-top:2px">${pct}% cobrado</div>
+          <div style="text-align:right">
+            <div style="font-size:11px;color:var(--text2)">Total adeudado</div>
+            <div style="font-size:20px;font-weight:700;font-family:"DM Mono",monospace;color:var(--red)">${fmt(cli.totalSaldo)}</div>
+          </div>
         </div>
-      </div>
-      <div class="exp-body" id="cr-${cr.id}">
-        <div style="font-size:12px;margin:10px 0;color:var(--text2)">📋 ${cr.desc}${cr.fecha?' · Otorgado: '+fmtF(cr.fecha):''}${cr.vcto?' · Vence: '+fmtF(cr.vcto):''}</div>
-        ${cr.abonos.length?`
-          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text2);margin-bottom:6px">Historial de abonos</div>
-          <div class="tw" style="margin-bottom:12px"><table><thead><tr><th>Fecha</th><th>Observación</th><th class="tr">Monto abonado</th></tr></thead><tbody>
-            ${cr.abonos.map(a=>`<tr>
-              <td>${fmtF(a.fecha)||'—'}</td><td>${a.obs||'—'}</td>
-              <td class="tr" style="font-family:'DM Mono',monospace;font-weight:600;color:var(--green)">${fmt(a.monto)}</td>
-            </tr>`).join('')}
-          </tbody></table></div>`:'<div style="font-size:12px;color:var(--text3);margin-bottom:10px">Sin abonos registrados aún</div>'}
-        <div class="row-acts" style="justify-content:flex-end">
-          ${cr.estado!=='Pagado'?`<button class="btn btn-xs btn-green" onclick="event.stopPropagation();abrirAbono('${cr.id}')">💵 Registrar abono</button>`:''}
-          <button class="btn btn-xs btn-red" onclick="event.stopPropagation();eliminarCredito('${cr.id}')">🗑 Eliminar</button>
+        <div id="cli-cred-${ci}">
+          ${cli.cuentas.map((cr,cri)=>{
+            const venc=cr.vcto&&cr.vcto<hoy&&cr.estado!=="Pagado";
+            const proxA=cr.vcto&&cr.vcto>hoy&&cr.vcto<=en5str;
+            const dias=cr.vcto?Math.ceil((new Date(cr.vcto)-new Date(hoy))/(864e5)):null;
+            const pct=cr.monto>0?Math.round(((cr.monto-cr.saldo)/cr.monto)*100):0;
+            return`<div style="border-top:1px solid var(--border);background:${cri%2===0?"var(--bg)":"var(--surface2)"}">
+              <div onclick="toggle("cr-det-${cr.id}")" style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px 10px 24px;cursor:pointer">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                  <span class="status ${venc?"s-vencido":cr.estado==="Pagado parcial"?"s-proceso":"s-pendiente"}" style="font-size:10px">${venc?"Vencido":cr.estado}</span>
+                  ${cr.ventaFolio?`<span class="folio-tag" style="font-size:9px">${cr.ventaFolio}</span>`:""}
+                  <span style="font-size:12px;color:var(--text2)">${cr.desc||"Sin descripción"}</span>
+                  ${cr.vcto?`<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;background:${venc?"var(--red-light)":proxA?"var(--amber-light)":"var(--surface2)"};color:${venc?"var(--red)":proxA?"var(--amber)":"var(--text2)"}">📅 ${fmtF(cr.vcto)}${venc?" · Vencido":(dias!==null&&dias<=5?" · "+dias+"d":"")}</span>`:""}
+                </div>
+                <div style="text-align:right;min-width:140px">
+                  <div style="font-size:11px;color:var(--text2)">Saldo: <strong style="font-family:"DM Mono",monospace;color:var(--red)">${fmt(cr.saldo)}</strong> / ${fmt(cr.monto)}</div>
+                  <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:3px"><div style="height:100%;width:${pct}%;background:${pct===100?"var(--green)":"var(--accent2)"};border-radius:3px"></div></div>
+                </div>
+              </div>
+              <div id="cr-det-${cr.id}" style="display:none;padding:10px 24px 14px 32px;border-top:1px dashed var(--border)">
+                <div style="font-size:11px;color:var(--text2);margin-bottom:8px">📋 ${cr.desc||"—"} · Otorgado: ${fmtF(cr.fecha)} · Vence: ${fmtF(cr.vcto)}</div>
+                ${cr.abonos.length?`<div class="tw" style="margin-bottom:10px"><table><thead><tr><th>Fecha</th><th>Observación</th><th class="tr">Monto</th></tr></thead><tbody>${cr.abonos.map(a=>`<tr><td>${fmtF(a.fecha)}</td><td>${a.obs||"—"}</td><td class="tr" style="font-family:"DM Mono",monospace;font-weight:600;color:var(--green)">${fmt(a.monto)}</td></tr>`).join("")}</tbody></table></div>`:"<div style=\"font-size:12px;color:var(--text3);margin-bottom:10px\">Sin abonos</div>"}
+                <div class="row-acts" style="justify-content:flex-end">
+                  <button class="btn btn-xs btn-green" onclick="event.stopPropagation();abrirAbono('${cr.id}')">💵 Registrar abono</button>
+                  <button class="btn btn-xs btn-red" onclick="event.stopPropagation();eliminarCredito('${cr.id}')">🗑 Eliminar</button>
+                </div>
+              </div>
+            </div>`;
+          }).join("")}
         </div>
-      </div>
-    </div>`;
-  }).join('');
+      </div>`;
+    }).join("");
+  }
+
+  // ── PANEL PAGADOS ─────────────────────────────────
+  const pagados=DB.creditos.filter(c=>c.estado==="Pagado");
+  const filtPag=q?pagados.filter(c=>c.clienteNombre.toLowerCase().includes(q)):pagados;
+  filtPag.sort((a,b)=>b.fecha>a.fecha?1:-1);
+  const elPag=$("lista-creditos-pagados");
+  if(!elPag)return;
+  if(!filtPag.length){
+    elPag.innerHTML="<div class=\"empty\"><div class=\"empty-icon\">✅</div>Sin cuentas pagadas/canceladas</div>";
+  } else {
+    elPag.innerHTML="<div class=\"tw\"><table><thead><tr><th>Cliente</th><th>Descripción</th><th>Otorgado</th><th>Vencimiento</th><th class=\"tr\">Monto</th><th></th></tr></thead><tbody>"+
+      filtPag.map(cr=>`<tr style="opacity:.8"><td style="font-weight:500">${cr.clienteNombre}<br><span style="font-size:10px;color:var(--text2)">${cr.clienteRut||""}</span></td><td style="font-size:11px">${cr.desc||"—"} ${cr.ventaFolio?`<span class="folio-tag" style="font-size:9px">${cr.ventaFolio}</span>`:""}</td><td style="font-size:11px">${fmtF(cr.fecha)}</td><td style="font-size:11px">${fmtF(cr.vcto)}</td><td class="tr" style="font-family:"DM Mono",monospace;font-weight:600;color:var(--green)">${fmt(cr.monto)}</td><td><button class="btn btn-xs btn-red" onclick="eliminarCredito('${cr.id}')">🗑</button></td></tr>`).join("")+
+      "</tbody></table></div>";
+  }
 }
+
 
 // ══════════════════════════════════════════════════
 // GASTOS
