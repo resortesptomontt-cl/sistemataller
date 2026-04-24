@@ -4529,16 +4529,20 @@ function renderCreditos(){
             const dias=cr.vcto?Math.ceil((new Date(cr.vcto)-new Date(hoy))/(864e5)):null;
             const pct=cr.monto>0?Math.round(((cr.monto-cr.saldo)/cr.monto)*100):0;
             return`<div style="border-top:1px solid var(--border);background:${cri%2===0?"var(--bg)":"var(--surface2)"}">
-              <div onclick="toggle("cr-det-${cr.id}")" style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px 10px 24px;cursor:pointer">
+              <div onclick="toggle('cr-det-${cr.id}')" style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px 10px 24px;cursor:pointer">
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                   <span class="status ${venc?"s-vencido":cr.estado==="Pagado parcial"?"s-proceso":"s-pendiente"}" style="font-size:10px">${venc?"Vencido":cr.estado}</span>
                   ${cr.ventaFolio?`<span class="folio-tag" style="font-size:9px">${cr.ventaFolio}</span>`:""}
                   <span style="font-size:12px;color:var(--text2)">${cr.desc||"Sin descripción"}</span>
                   ${cr.vcto?`<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;background:${venc?"var(--red-light)":proxA?"var(--amber-light)":"var(--surface2)"};color:${venc?"var(--red)":proxA?"var(--amber)":"var(--text2)"}">📅 ${fmtF(cr.vcto)}${venc?" · Vencido":(dias!==null&&dias<=5?" · "+dias+"d":"")}</span>`:""}
                 </div>
-                <div style="text-align:right;min-width:140px">
-                  <div style="font-size:11px;color:var(--text2)">Saldo: <strong style="font-family:"DM Mono",monospace;color:var(--red)">${fmt(cr.saldo)}</strong> / ${fmt(cr.monto)}</div>
-                  <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:3px"><div style="height:100%;width:${pct}%;background:${pct===100?"var(--green)":"var(--accent2)"};border-radius:3px"></div></div>
+                <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                  <div style="text-align:right;min-width:120px">
+                    <div style="font-size:11px;color:var(--text2)">Saldo: <strong style="font-family:'DM Mono',monospace;color:var(--red)">${fmt(cr.saldo)}</strong> / <span style="font-size:10px">${fmt(cr.monto)}</span></div>
+                    <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:3px"><div style="height:100%;width:${pct}%;background:${pct===100?"var(--green)":"var(--accent2)"};border-radius:3px"></div></div>
+                  </div>
+                  <button onclick="event.stopPropagation();abrirAbono('${cr.id}')" class="btn btn-xs btn-teal" title="Registrar abono parcial">💵 Abono</button>
+                  <button onclick="event.stopPropagation();marcarPagado('${cr.id}')" class="btn btn-xs" style="background:var(--green);color:#fff;white-space:nowrap" title="Marcar como pagada completamente">✅ Pagada</button>
                 </div>
               </div>
               <div id="cr-det-${cr.id}" style="display:none;padding:10px 24px 14px 32px;border-top:1px dashed var(--border)">
