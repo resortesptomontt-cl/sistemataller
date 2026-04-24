@@ -4512,14 +4512,17 @@ function renderCreditos(){
               ${cli.tieneVencido?`<span style="font-size:10px;font-weight:700;background:var(--red);color:#fff;padding:2px 8px;border-radius:10px">⚠ VENCIDO</span>`:""}
               ${cli.tieneProx&&!cli.tieneVencido?`<span style="font-size:10px;font-weight:700;background:var(--amber);color:#fff;padding:2px 8px;border-radius:10px">⏰ Vence pronto</span>`:""}
             </div>
-            <div style="font-size:11px;color:var(--text2);margin-top:3px">${cli.cuentas.length} cuenta${cli.cuentas.length!==1?"s":""} pendiente${cli.cuentas.length!==1?"s":""}</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:3px">${cli.cuentas.length} cuenta${cli.cuentas.length!==1?"s":""} pendiente${cli.cuentas.length!==1?"s":""} · clic para ver</div>
           </div>
-          <div style="text-align:right">
-            <div style="font-size:11px;color:var(--text2)">Total adeudado</div>
-            <div style="font-size:20px;font-weight:700;font-family:"DM Mono",monospace;color:var(--red)">${fmt(cli.totalSaldo)}</div>
+          <div style="display:flex;align-items:center;gap:14px">
+            <div style="text-align:right">
+              <div style="font-size:11px;color:var(--text2)">Total adeudado</div>
+              <div style="font-size:20px;font-weight:700;font-family:'DM Mono',monospace;color:var(--red)">${fmt(cli.totalSaldo)}</div>
+            </div>
+            <span style="font-size:18px;color:var(--text3)">▾</span>
           </div>
         </div>
-        <div id="cli-cred-${ci}">
+        <div id="cli-cred-${ci}" style="display:none">
           ${cli.cuentas.map((cr,cri)=>{
             const venc=cr.vcto&&cr.vcto<hoy&&cr.estado!=="Pagado";
             const proxA=cr.vcto&&cr.vcto>hoy&&cr.vcto<=en5str;
@@ -5861,7 +5864,14 @@ function buildDocVenta(v,vh){
 // ══════════════════════════════════════════════════
 // TOGGLE EXPAND
 // ══════════════════════════════════════════════════
-function toggle(id){const el=$(id);if(el)el.classList.toggle('open');}
+function toggle(id){
+  const el=$(id);if(!el)return;
+  // If element has inline display:none, toggle inline style (cli-cred panels)
+  if(el.style.display==='none'){el.style.display='block';return;}
+  if(el.style.display==='block'&&!el.classList.contains('exp-body')){el.style.display='none';return;}
+  // Otherwise use .open class (exp-body elements)
+  el.classList.toggle('open');
+}
 
 // ══════════════════════════════════════════════════
 // AGENDA — Notas, Recordatorios, Reservas
