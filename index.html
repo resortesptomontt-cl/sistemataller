@@ -4429,6 +4429,18 @@ function eliminarCredito(id){
   DB.creditos=DB.creditos.filter(c=>c.id!==id);
   save();renderCreditos();updateBadges();toast('Crédito eliminado');
 }
+function marcarPagado(id){
+  const cr=DB.creditos.find(x=>x.id===id);if(!cr)return;
+  if(!confirm(`¿Marcar como PAGADA la cuenta de ${cr.clienteNombre} por ${fmt(cr.saldo)} de saldo restante?`))return;
+  if(cr.saldo>0){
+    cr.abonos.push({monto:cr.saldo,fecha:today(),obs:'Marcado como pagado manualmente',creado:new Date().toISOString()});
+    cr.saldo=0;
+  }
+  cr.estado='Pagado';
+  save();renderCreditos();updateBadges();renderDashboard();
+  // Auto-switch to paid tab briefly to confirm
+  toast(`✅ Cuenta de ${cr.clienteNombre} marcada como pagada — pasó a la lista de Pagados`,'info');
+}
 function switchCredTab(tab, btn){
   const esPend=tab==='pendiente';
   $('cred-panel-pendiente').style.display=esPend?'block':'none';
@@ -4531,6 +4543,7 @@ function renderCreditos(){
                 ${cr.abonos.length?`<div class="tw" style="margin-bottom:10px"><table><thead><tr><th>Fecha</th><th>Observación</th><th class="tr">Monto</th></tr></thead><tbody>${cr.abonos.map(a=>`<tr><td>${fmtF(a.fecha)}</td><td>${a.obs||"—"}</td><td class="tr" style="font-family:"DM Mono",monospace;font-weight:600;color:var(--green)">${fmt(a.monto)}</td></tr>`).join("")}</tbody></table></div>`:"<div style=\"font-size:12px;color:var(--text3);margin-bottom:10px\">Sin abonos</div>"}
                 <div class="row-acts" style="justify-content:flex-end">
                   <button class="btn btn-xs btn-green" onclick="event.stopPropagation();abrirAbono('${cr.id}')">💵 Registrar abono</button>
+                  <button class="btn btn-xs" style="background:var(--green);color:#fff" onclick="event.stopPropagation();marcarPagado('${cr.id}')">✅ Marcar pagada</button>
                   <button class="btn btn-xs btn-red" onclick="event.stopPropagation();eliminarCredito('${cr.id}')">🗑 Eliminar</button>
                 </div>
               </div>
