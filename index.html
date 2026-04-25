@@ -3879,11 +3879,7 @@ function confirmarFpagoOT(){
 // ══════════════════════════════════════════════════
 // ANTICIPOS / PRÉSTAMOS / DESCUENTOS
 // ══════════════════════════════════════════════════
-function eliminarAnticipo(id){
-  if(!confirm('¿Eliminar este registro?'))return;
-  DB.anticipos=DB.anticipos.filter(a=>a.id!==id);
-  save();renderStatsAnt();renderResumenAnt();renderHistAnt();updateBadges();toast('Eliminado');
-}
+// eliminarAnticipo defined below
 function exportarResumenAnt(){
   const mes=$('ant-filtro-mes')?.value||'';
   const anio=$('ant-filtro-anio')?.value||'';
@@ -5320,6 +5316,7 @@ function guardarConfig(){
   CFG.pieCot=($('cfg-pie-cot')?.value||'').trim();
   CFG.notaLegal=($('cfg-nota-legal')?.value||'').trim();
   saveCfg(CFG);
+  fbSave();
   const lt=document.querySelector('.logo-title');
   if(lt)lt.textContent=CFG.nombre;
   toast('Configuración guardada ✓');
@@ -7721,6 +7718,11 @@ async function fbInit(){
       const data=snap.data();
       Object.keys(DB).forEach(k=>{if(Array.isArray(data[k]))DB[k]=data[k];});
       Object.keys(DB).forEach(k=>{try{localStorage.setItem('ts3_'+k,JSON.stringify(DB[k]));}catch(e){}});
+      // Restore CFG from Firebase if present
+      if(data._cfg&&typeof data._cfg==='object'){
+        CFG=Object.assign({},CFG_DEFAULT,data._cfg);
+        saveCfg(CFG);
+      }
       llenarSelectsCat();renderDashboard();updateBadges();
       toast('✓ Datos sincronizados desde la nube','info');
     } else {
@@ -7737,6 +7739,7 @@ async function fbInit(){
       if(sig!==cur){
         Object.keys(DB).forEach(k=>{if(Array.isArray(data[k]))DB[k]=data[k];});
         Object.keys(DB).forEach(k=>{try{localStorage.setItem('ts3_'+k,JSON.stringify(DB[k]));}catch(e){}});
+        if(data._cfg&&typeof data._cfg==='object'){CFG=Object.assign({},CFG_DEFAULT,data._cfg);saveCfg(CFG);}
         llenarSelectsCat();renderDashboard();updateBadges();
         const mod=document.querySelector('.section.active')?.id?.replace('sec-','');
         if(mod&&window._navActions?.[mod])window._navActions[mod]();
@@ -7759,6 +7762,7 @@ async function fbSaveNow(){
     setSyncUI('saving');
     const data={};
     Object.keys(DB).forEach(k=>{data[k]=DB[k];});
+    data._cfg=CFG;
     data._updated=new Date().toISOString();
     await window._fbDocRef.set(data);
     setSyncUI('online');
