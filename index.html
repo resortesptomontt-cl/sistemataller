@@ -5966,7 +5966,10 @@ function buildDocCot(c,v){
   ${c.obs?`<div class="obs-box"><strong>Notas:</strong> ${c.obs}</div>`:''}
   ${bancoHtml()}
   ${CFG.pieCot?`<div class="pie-txt">${CFG.pieCot}</div>`:''}
-  <div style="background:#fdf3e0;border-radius:5px;padding:9px 13px;font-size:10px;color:#7a4f10;margin-top:10px">Esta cotización tiene una validez de ${validez} días a partir de su fecha de emisión.</div>
+  <div style="background:#fff3cd;border:1px solid #e0a800;border-radius:5px;padding:10px 13px;font-size:10px;color:#7a5f10;margin-top:10px">
+    <strong>⚠ AVISO IMPORTANTE:</strong> Los precios indicados en esta cotización son <strong>referenciales</strong> y están sujetos a modificación según los repuestos, mano de obra adicional y trabajos que se detecten durante el proceso de diagnóstico o desarme del vehículo. Cualquier variación al presupuesto será informada y aprobada por el cliente antes de proceder.
+  </div>
+  <div style="background:#fdf3e0;border-radius:5px;padding:9px 13px;font-size:10px;color:#7a4f10;margin-top:6px">Esta cotización tiene una validez de ${validez} días a partir de su fecha de emisión.</div>
   <div class="firma-grid" style="margin-top:24px"><div class="firma-line">Aceptación del cliente</div><div class="firma-line">Firma / sello taller</div></div>
   ${CFG.notaLegal?`<div class="footer">${CFG.notaLegal}</div>`:''}
   <div class="footer">Documento generado el ${today()} — ${CFG.nombre||'Taller Mecánico'}</div>
