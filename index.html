@@ -1814,6 +1814,20 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
   </div>
 </div>
 
+<!-- MODAL VISTA RÁPIDA CLIENTE -->
+<div id="modal-cli-view" class="modal-overlay" style="display:none" onclick="if(event.target===this)cerrarCliView()">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-hdr">
+      <h3 id="cli-view-titulo">Cliente</h3>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-sm btn-primary" id="cli-view-edit-btn">✏ Editar</button>
+        <button class="btn btn-ghost btn-sm" onclick="cerrarCliView()">✕</button>
+      </div>
+    </div>
+    <div class="modal-body" id="cli-view-body" style="max-height:72vh;overflow-y:auto"></div>
+  </div>
+</div>
+
 <!-- MODAL CLIENTE RÁPIDO (desde OT/Venta/Cot autocomplete) -->
 <div id="modal-cli-rapido" class="modal-overlay" style="display:none" onclick="if(event.target===this)cerrarCliRapido()">
   <div class="modal" style="max-width:440px">
@@ -3142,11 +3156,12 @@ function renderClientes(){
     lista.map(c=>{
       const vehs=vehiculosDeCliente(c.id);
       return`<tr>
-        <td style="font-weight:500">${c.nombre}</td>
-        <td style="font-family:'DM Mono',monospace;font-size:11px">${c.rut}</td>
-        <td>${c.tel||'-'}</td><td>${c.email||'-'}</td>
+        <td style="font-weight:500">${c.nombre}${c.tipo==='empresa'?` <span class="badge b-blue" style="font-size:9px">Empresa</span>`:''}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:11px">${c.rut||'—'}</td>
+        <td>${c.tel||'—'}</td><td>${c.email||'—'}</td>
         <td>${vehs.length?vehs.map(v=>`<span class="badge b-orange" style="margin-right:2px">${v.patente}</span>`).join(''):'<span style="color:var(--text3)">—</span>'}</td>
         <td><div class="row-acts">
+          <button class="btn btn-xs btn-primary" onclick="verClienteRapido('${c.id}')">👁 Ver</button>
           <button class="btn btn-xs" onclick="abrirEditCli('${c.id}')">✏ Editar</button>
           <button class="btn btn-xs" onclick="irVehiculo('${c.id}')">+ Veh.</button>
           <button class="btn btn-xs btn-red" onclick="eliminarCliente('${c.id}')">Eliminar</button>
@@ -3154,6 +3169,88 @@ function renderClientes(){
       </tr>`;
     }).join('')+'</tbody></table></div>';
 }
+
+function verClienteRapido(id){
+  const c=DB.clientes.find(x=>x.id===id);if(!c)return;
+  $('cli-view-titulo').textContent=(c.tipo==='empresa'?'🏢 ':'👤 ')+c.nombre;
+  const btn=$('cli-view-edit-btn');
+  if(btn)btn.onclick=()=>{cerrarCliView();abrirEditCli(id);};
+  const vehs=vehiculosDeCliente(id);
+  const ots=DB.ordenes.filter(o=>o.clienteId===id).sort((a,b)=>b.fechaIn>a.fechaIn?1:-1);
+  const ventas=DB.ventas.filter(v=>v.clienteId===id);
+  const totalGastado=ventas.reduce((s,v)=>s+v.total,0);
+  const fmtF=d=>{if(!d)return'—';const[y,m,dd]=d.split('-');return`${dd}/${m}/${y}`;};
+  $('cli-view-body').innerHTML=`
+    <!-- Info principal -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div style="background:var(--surface2);border-radius:var(--radius);padding:10px 14px">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Datos de contacto</div>
+        ${c.rut?`<div style="font-size:12px;margin-bottom:4px"><span style="color:var(--text2)">RUT:</span> <strong style="font-family:'DM Mono',monospace">${c.rut}</strong></div>`:''}
+        ${c.tel?`<div style="font-size:12px;margin-bottom:4px"><span style="color:var(--text2)">Tel:</span> <a href="tel:${c.tel}" style="color:var(--accent)">${c.tel}</a></div>`:''}
+        ${c.email?`<div style="font-size:12px;margin-bottom:4px"><span style="color:var(--text2)">Email:</span> <a href="mailto:${c.email}" style="color:var(--accent)">${c.email}</a></div>`:''}
+        ${c.dir?`<div style="font-size:12px;margin-bottom:4px"><span style="color:var(--text2)">Dir:</span> ${c.dir}</div>`:''}
+        ${c.origen?`<div style="font-size:11px;color:var(--text3);margin-top:4px">Cómo llegó: ${c.origen}</div>`:''}
+      </div>
+      <div style="background:var(--surface2);border-radius:var(--radius);padding:10px 14px">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Resumen</div>
+        <div style="font-size:12px;margin-bottom:4px"><span style="color:var(--text2)">OTs:</span> <strong>${ots.length}</strong></div>
+        <div style="font-size:12px;margin-bottom:4px"><span style="color:var(--text2)">Ventas:</span> <strong>${ventas.length}</strong></div>
+        <div style="font-size:12px;margin-bottom:4px"><span style="color:var(--text2)">Total gastado:</span> <strong style="font-family:'DM Mono',monospace;color:var(--green)">${fmt(totalGastado)}</strong></div>
+        <div style="font-size:12px"><span style="color:var(--text2)">Cliente desde:</span> ${fmtF(c.creado?.slice(0,10))}</div>
+      </div>
+    </div>
+
+    <!-- Contacto empresa -->
+    ${c.tipo==='empresa'&&c.contactoNom?`
+    <div style="background:var(--surface2);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">👔 Contacto en empresa</div>
+      <div style="font-size:12px;display:flex;gap:16px;flex-wrap:wrap">
+        <span><strong>${c.contactoNom}</strong>${c.contactoCargo?' · '+c.contactoCargo:''}</span>
+        ${c.contactoTel?`<a href="tel:${c.contactoTel}" style="color:var(--accent)">${c.contactoTel}</a>`:''}
+        ${c.contactoEmail?`<a href="mailto:${c.contactoEmail}" style="color:var(--accent)">${c.contactoEmail}</a>`:''}
+      </div>
+    </div>`:''}
+
+    <!-- Vehículos -->
+    ${vehs.length?`
+    <div style="margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:6px">🚗 Vehículos (${vehs.length})</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${vehs.map(v=>`<div style="background:var(--surface2);border-radius:var(--radius);padding:6px 12px;font-size:12px">
+          <span class="badge b-orange">${v.patente}</span>
+          <span style="margin-left:6px">${[v.marca,v.modelo,v.anio].filter(Boolean).join(' ')}</span>
+          ${v.combustible?`<span style="font-size:10px;color:var(--text3);margin-left:4px">${v.combustible}</span>`:''}
+        </div>`).join('')}
+      </div>
+    </div>`:''}
+
+    <!-- Últimas OTs -->
+    ${ots.length?`
+    <div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:6px">🔧 Últimas órdenes de trabajo</div>
+      <div class="tw"><table><thead><tr><th>N° OT</th><th>Fecha</th><th>Diagnóstico</th><th>Estado</th><th class="tr">Total</th></tr></thead><tbody>
+        ${ots.slice(0,5).map(o=>`<tr>
+          <td><button onclick="cerrarCliView();setTimeout(()=>verOTRapido('${o.folio}'),200)" class="folio-tag" style="border:none;cursor:pointer;text-decoration:underline">${o.folio}</button></td>
+          <td style="font-size:11px">${fmtF(o.fechaIn)}</td>
+          <td style="font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.diag||o.obs||'—'}</td>
+          <td><span class="status ${statusClass(o.estado)}" style="font-size:10px">${o.estado}</span></td>
+          <td class="tr" style="font-family:'DM Mono',monospace;font-weight:600">${fmt(o.total)}</td>
+        </tr>`).join('')}
+      </tbody></table></div>
+      ${ots.length>5?`<div style="font-size:11px;color:var(--text3);margin-top:4px">... y ${ots.length-5} más</div>`:''}
+    </div>`:''}
+
+    <!-- Observaciones -->
+    ${c.obs?`<div style="background:var(--surface2);border-radius:var(--radius);padding:8px 12px;font-size:12px;color:var(--text2);margin-top:10px">📋 ${c.obs}</div>`:''}
+  `;
+  $('modal-cli-view').style.display='flex';
+  document.body.style.overflow='hidden';
+}
+function cerrarCliView(){
+  $('modal-cli-view').style.display='none';
+  document.body.style.overflow='';
+}
+
 function irVehiculo(cid){
   nav('vehiculos',null);
   const c=DB.clientes.find(x=>x.id===cid);
