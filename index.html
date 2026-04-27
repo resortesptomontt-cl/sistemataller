@@ -5085,7 +5085,18 @@ function guardarCliRapido(){
     if(pill){pill.style.display='flex';$('edit-ot-cli-pill-nom').textContent=nom;}
     const st=$('edit-ot-cli-status');if(st)st.innerHTML='<span style="color:var(--green)">✓ Cliente registrado</span>';
     _editOTCliIdForVeh=newId;
-    toast('Cliente "'+nom+'" creado y asignado a la OT');
+    toast('Cliente "'+nom+'" creado — ahora registra el vehículo');
+    // Auto-open vehicle modal with patente pre-filled
+    const pat=($('edit-ot-pat')?.value||'').trim().toUpperCase();
+    $('vh-rapido-cli-id').value=newId;
+    $('vh-rapido-cli-nom').textContent=nom;
+    ['vhr-marca','vhr-mod','vhr-anio','vhr-col','vhr-km','vhr-vin','vhr-obs'].forEach(i=>{if($(i))$(i).value='';});
+    if($('vhr-pat'))$('vhr-pat').value=pat;
+    if($('vhr-comb'))$('vhr-comb').value='Diésel';
+    _qCliCtxAfterVH='edit-ot';
+    $('modal-vh-rapido').style.display='flex';
+    document.body.style.overflow='hidden';
+    setTimeout(()=>{if(pat)$('vhr-marca')?.focus();else $('vhr-pat')?.focus();},120);
     return;
   }
   const txtMap={ot:'ot-cli-txt',v:'v-cli-txt',cot:'cot-cli-txt'};
@@ -5355,11 +5366,15 @@ function abrirAsignarVehOT(){
   if(!cliId){toast('Primero asigna o crea el cliente','warn');return;}
   $('vh-rapido-cli-id').value=cliId;
   $('vh-rapido-cli-nom').textContent=cliNom;
-  ['vhr-pat','vhr-marca','vhr-mod','vhr-anio','vhr-col','vhr-km','vhr-vin','vhr-obs'].forEach(i=>{if($(i))$(i).value='';});
-  if($('vhr-comb'))$('vhr-comb').value='Diesel';
+  // Pre-fill patente from the OT
+  const pat=($('edit-ot-pat')?.value||'').trim().toUpperCase();
+  ['vhr-marca','vhr-mod','vhr-anio','vhr-col','vhr-km','vhr-vin','vhr-obs'].forEach(i=>{if($(i))$(i).value='';});
+  if($('vhr-pat'))$('vhr-pat').value=pat;
+  if($('vhr-comb'))$('vhr-comb').value='Diésel';
   _qCliCtxAfterVH='edit-ot';
   $('modal-vh-rapido').style.display='flex';
   document.body.style.overflow='hidden';
+  setTimeout(()=>{if(pat)$('vhr-marca')?.focus();else $('vhr-pat')?.focus();},120);
 }
 function buscarVehEditOT(pat){
   const p=pat.trim().toUpperCase();
