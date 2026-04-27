@@ -1940,6 +1940,42 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
 </div>
 
 <!-- MODAL EDITAR OT -->
+<!-- MODAL DOCUMENTO TRIBUTARIO OT -->
+<div id="modal-doc-ot" class="modal-overlay" style="display:none" onclick="if(event.target===this)cerrarDocOT()">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-hdr">
+      <h3>🧾 Documento tributario — <span id="doc-ot-titulo"></span></h3>
+      <button class="btn btn-ghost btn-sm" onclick="cerrarDocOT()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:14px">Asocia un documento tributario emitido (boleta, factura, etc.) a esta orden de trabajo.</div>
+      <div class="g2" style="margin-bottom:12px">
+        <div class="field"><label>Tipo de documento</label>
+          <select id="doc-ot-tipo" style="padding:8px 11px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);outline:none;width:100%">
+            <option value="">— Sin documento —</option>
+            <option value="Boleta">Boleta</option>
+            <option value="Boleta electrónica">Boleta electrónica</option>
+            <option value="Factura">Factura</option>
+            <option value="Factura electrónica">Factura electrónica</option>
+            <option value="Nota de crédito">Nota de crédito</option>
+          </select>
+        </div>
+        <div class="field"><label>N° folio / documento</label><input id="doc-ot-folio" placeholder="Ej: 000123"></div>
+        <div class="field"><label>Fecha de emisión</label><input id="doc-ot-fecha" type="date"></div>
+        <div class="field"><label>Monto facturado ($)</label><input id="doc-ot-monto" type="number" placeholder="Vacío = total OT" min="0"></div>
+      </div>
+      <div id="doc-ot-actual" style="display:none;background:var(--teal-light);border:1px solid var(--teal);border-radius:var(--radius);padding:8px 14px;font-size:12px;margin-bottom:4px"></div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn btn-red btn-sm" onclick="quitarDocOT()" id="doc-ot-quitar" style="display:none">✕ Quitar documento</button>
+      <div style="display:flex;gap:6px;margin-left:auto">
+        <button class="btn" onclick="cerrarDocOT()">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarDocOT()">✓ Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="modal-edit-ot" class="modal-overlay" style="display:none" onclick="if(event.target===this)cerrarEditOT()">
   <div class="modal" style="max-width:680px">
     <div class="modal-hdr">
@@ -3885,6 +3921,9 @@ function renderOTs(){
           <button class="btn btn-xs" onclick="event.stopPropagation();imprimirOT('${o.folio}')">🖨 PDF</button>
           ${(o.tel||o.clienteNombre)?`<button class="btn btn-xs btn-green" onclick="event.stopPropagation();waOT('${o.folio}')" title="Enviar por WhatsApp">💬 WhatsApp</button>`:''}
           <button class="btn btn-xs" onclick="event.stopPropagation();abrirEditOT('${o.folio}')">✏ Editar</button>
+          <button class="btn btn-xs ${o.docTipo?'btn-teal':'btn-ghost'}" onclick="event.stopPropagation();abrirDocOT('${o.folio}')" title="${o.docTipo?'Documento: '+o.docTipo+(o.docFolio?' N°'+o.docFolio:''):'Asignar documento tributario'}">
+            🧾 ${o.docTipo?o.docTipo.replace('electrónica','e.').replace('Boleta','Bol.').replace('Factura','Fact.'):'Doc.'}
+          </button>
           <select style="padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius);font-size:11px;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text)" onchange="actualizarEstadoOT('${o.folio}',this.value)">
             ${['Recibido','En proceso','Listo','Entregado'].map(s=>`<option ${o.estado===s?'selected':''}>${s}</option>`).join('')}
           </select>
@@ -4972,6 +5011,55 @@ function guardarEditMec(){
 // ══════════════════════════════════════════════════
 let _editOTFolio=null;
 let _editOTItems=[];
+
+// ── Documento tributario en OT guardada ──────────
+let _docOTFolio=null;
+function abrirDocOT(folio){
+  const o=DB.ordenes.find(x=>x.folio===folio);if(!o)return;
+  _docOTFolio=folio;
+  $('doc-ot-titulo').textContent=folio+' — '+o.clienteNombre;
+  $('doc-ot-tipo').value=o.docTipo||'';
+  $('doc-ot-folio').value=o.docFolio||'';
+  $('doc-ot-fecha').value=o.docFecha||today();
+  $('doc-ot-monto').value=o.docMonto&&o.docMonto!==o.total?o.docMonto:'';
+  // Show current doc if exists
+  const cur=$('doc-ot-actual');
+  const quitarBtn=$('doc-ot-quitar');
+  if(o.docTipo){
+    const fmtF=d=>{if(!d)return'';const[y,m,dd]=d.split('-');return`${dd}/${m}/${y}`;};
+    cur.style.display='block';
+    cur.innerHTML=`Documento actual: <strong>${o.docTipo}</strong>${o.docFolio?' · N°'+o.docFolio:''}${o.docFecha?' · '+fmtF(o.docFecha):''}${o.docMonto?' · '+fmt(o.docMonto):''}`;
+    quitarBtn.style.display='flex';
+  } else {
+    cur.style.display='none';
+    quitarBtn.style.display='none';
+  }
+  $('modal-doc-ot').style.display='flex';
+  document.body.style.overflow='hidden';
+  setTimeout(()=>$('doc-ot-tipo')?.focus(),100);
+}
+function cerrarDocOT(){
+  $('modal-doc-ot').style.display='none';
+  document.body.style.overflow='';
+  _docOTFolio=null;
+}
+function guardarDocOT(){
+  const o=DB.ordenes.find(x=>x.folio===_docOTFolio);if(!o){cerrarDocOT();return;}
+  const tipo=$('doc-ot-tipo').value;
+  o.docTipo=tipo;
+  o.docFolio=tipo?($('doc-ot-folio').value||'').trim():'';
+  o.docFecha=tipo?($('doc-ot-fecha').value||''):'';
+  const montoV=parseFloat($('doc-ot-monto').value)||0;
+  o.docMonto=tipo?(montoV||o.total):0;
+  save();cerrarDocOT();renderOTs();
+  toast(tipo?`Documento ${tipo} asignado a ${o.folio}`:`Documento quitado de ${o.folio}`);
+}
+function quitarDocOT(){
+  const o=DB.ordenes.find(x=>x.folio===_docOTFolio);if(!o){cerrarDocOT();return;}
+  o.docTipo='';o.docFolio='';o.docFecha='';o.docMonto=0;
+  save();cerrarDocOT();renderOTs();
+  toast(`Documento quitado de ${o.folio}`);
+}
 
 function abrirEditOT(folio){
   const o=DB.ordenes.find(x=>x.folio===folio);if(!o)return;
