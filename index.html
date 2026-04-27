@@ -1998,8 +1998,38 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
     </div>
     <div class="modal-body">
       <div class="g3" style="margin-bottom:12px">
-        <div class="field"><label>Cliente</label><input id="edit-ot-cli" placeholder="Nombre del cliente"></div>
-        <div class="field"><label>Patente</label><input id="edit-ot-pat" placeholder="ABCD12" style="text-transform:uppercase"></div>
+        <!-- Cliente con opción de asignar desde DB -->
+        <div class="field" style="grid-column:1/-1">
+          <label>Cliente
+            <span id="edit-ot-cli-status" style="font-size:10px;margin-left:6px"></span>
+          </label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <div style="flex:1;position:relative">
+              <input id="edit-ot-cli" placeholder="Nombre del cliente" autocomplete="off"
+                oninput="acSearchEditOTCli()" onkeydown="acKeyEditOTCli(event)" onblur="setTimeout(()=>{const d=$('edit-ot-cli-drop');if(d)d.style.display='none'},200)">
+              <div id="edit-ot-cli-drop" class="ac-dropdown" style="display:none"></div>
+              <input type="hidden" id="edit-ot-cli-id">
+            </div>
+            <button class="btn btn-xs btn-green" onclick="abrirAsignarCliOT()" title="Crear nuevo cliente">+ Nuevo</button>
+          </div>
+          <div id="edit-ot-cli-pill" style="display:none;margin-top:5px;background:var(--green-light);border:1px solid var(--green);border-radius:var(--radius);padding:5px 10px;font-size:12px;display:flex;align-items:center;justify-content:space-between">
+            <span id="edit-ot-cli-pill-nom" style="font-weight:600;color:var(--green)"></span>
+            <button onclick="desasignarCliOT()" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:13px">✕</button>
+          </div>
+        </div>
+
+        <!-- Patente / Vehículo con opción de asignar -->
+        <div class="field" style="grid-column:1/-1">
+          <label>Vehículo
+            <span id="edit-ot-veh-status" style="font-size:10px;margin-left:6px"></span>
+          </label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input id="edit-ot-pat" placeholder="ABCD12 (patente)" style="text-transform:uppercase;flex:1"
+              oninput="buscarVehEditOT(this.value)">
+            <button class="btn btn-xs btn-teal" onclick="abrirAsignarVehOT()" title="Agregar vehículo rápido">+ Vehículo</button>
+          </div>
+          <div id="edit-ot-veh-pill" style="display:none;margin-top:5px;background:var(--teal-light);border:1px solid var(--teal);border-radius:var(--radius);padding:5px 10px;font-size:12px"></div>
+        </div>
         <div class="field">
           <label>Mecánicos <span style="font-weight:400;font-size:10px;color:var(--text3)">— uno o más</span></label>
           <div id="edit-ot-mec-pills" style="display:flex;gap:5px;flex-wrap:wrap;min-height:34px;padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);cursor:pointer" onclick="toggleMecPicker('edit-ot')">
@@ -2042,6 +2072,15 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
       </div>
       <button class="btn btn-sm btn-orange" onclick="addItemEditOT()">+ Agregar ítem</button>
       <div class="tbar tbar-blue" style="margin-top:12px"><div><div class="lbl">Total orden</div></div><div class="amt" id="edit-ot-total">$0</div></div>
+
+      <!-- Fotos de evidencia -->
+      <hr style="margin:14px 0">
+      <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">📷 Fotos de evidencia</div>
+      <div id="edit-ot-imgs-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;min-height:20px"></div>
+      <label class="btn btn-sm" style="cursor:pointer">
+        📷 Agregar fotos
+        <input type="file" accept="image/*" multiple style="display:none" onchange="agregarImgsEditOT(this)">
+      </label>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="cerrarEditOT()">Cancelar</button>
@@ -5038,6 +5077,17 @@ function guardarCliRapido(){
   save();
   const ctx=_qCliCtx||'ot';
   cerrarCliRapido();
+  // Handle edit-ot context separately
+  if(ctx==='edit-ot'){
+    if($('edit-ot-cli'))$('edit-ot-cli').value=nom;
+    if($('edit-ot-cli-id'))$('edit-ot-cli-id').value=newId;
+    const pill=$('edit-ot-cli-pill');
+    if(pill){pill.style.display='flex';$('edit-ot-cli-pill-nom').textContent=nom;}
+    const st=$('edit-ot-cli-status');if(st)st.innerHTML='<span style="color:var(--green)">✓ Cliente registrado</span>';
+    _editOTCliIdForVeh=newId;
+    toast('Cliente "'+nom+'" creado y asignado a la OT');
+    return;
+  }
   const txtMap={ot:'ot-cli-txt',v:'v-cli-txt',cot:'cot-cli-txt'};
   const idMap={ot:'ot-cli-id',v:'v-cli-id',cot:'cot-cli-id'};
   if($(txtMap[ctx]))$(txtMap[ctx]).value=nom;
@@ -5046,7 +5096,7 @@ function guardarCliRapido(){
   $('vh-rapido-cli-id').value=newId;
   $('vh-rapido-cli-nom').textContent=nom;
   ['vhr-pat','vhr-marca','vhr-mod','vhr-anio','vhr-col','vhr-km','vhr-vin','vhr-obs'].forEach(i=>{if($(i))$(i).value='';});
-  if($('vhr-comb'))$('vhr-comb').value='Diesël';
+  if($('vhr-comb'))$('vhr-comb').value='Diésel';
   $('modal-vh-rapido').style.display='flex';
   document.body.style.overflow='hidden';
   setTimeout(()=>$('vhr-pat')?.focus(),120);
@@ -5158,6 +5208,39 @@ function quitarDocOT(){
   toast(`Documento quitado de ${o.folio}`);
 }
 
+// ── Imágenes en edición OT ──────────────────────
+let _editOTImgs=[];
+
+function agregarImgsEditOT(input){
+  const files=Array.from(input.files);
+  files.forEach(file=>{
+    const r=new FileReader();
+    r.onload=e=>{
+      _editOTImgs.push(e.target.result);
+      renderEditOTImgs();
+    };
+    r.readAsDataURL(file);
+  });
+  input.value='';
+}
+
+function renderEditOTImgs(){
+  const el=$('edit-ot-imgs-preview');if(!el)return;
+  if(!_editOTImgs.length){el.innerHTML='<span style="font-size:12px;color:var(--text3)">Sin fotos</span>';return;}
+  el.innerHTML=_editOTImgs.map((img,i)=>`
+    <div style="position:relative;display:inline-block">
+      <img src="${img}" onclick="abrirLightbox(_editOTImgs,${i})"
+        style="width:80px;height:64px;object-fit:cover;border-radius:var(--radius);cursor:pointer;border:1px solid var(--border)">
+      <button onclick="eliminarImgEditOT(${i})"
+        style="position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">✕</button>
+    </div>`).join('');
+}
+
+function eliminarImgEditOT(idx){
+  _editOTImgs.splice(idx,1);
+  renderEditOTImgs();
+}
+
 function abrirEditOT(folio){
   const o=DB.ordenes.find(x=>x.folio===folio);if(!o)return;
   _editOTFolio=folio;
@@ -5171,20 +5254,131 @@ function abrirEditOT(folio){
   $('edit-ot-diag').value=o.diag||'';
   $('edit-ot-obs').value=o.obs||'';
   $('edit-ot-estado').value=o.estado||'Recibido';
+
+  // Set client ID and status indicator
+  if($('edit-ot-cli-id'))$('edit-ot-cli-id').value=o.clienteId||'';
+  const cliStatus=$('edit-ot-cli-status');
+  const cliPill=$('edit-ot-cli-pill');
+  if(o.clienteId){
+    const c=DB.clientes.find(x=>x.id===o.clienteId);
+    if(cliStatus)cliStatus.innerHTML='<span style="color:var(--green)">✓ Cliente registrado</span>';
+    if(cliPill){
+      cliPill.style.display='flex';
+      $('edit-ot-cli-pill-nom').textContent=(c?c.nombre:o.clienteNombre)+(c?.rut?' · '+c.rut:'');
+    }
+  } else {
+    if(cliStatus)cliStatus.innerHTML='<span style="color:var(--amber)">⚠ Cliente libre — sin registro</span>';
+    if(cliPill)cliPill.style.display='none';
+  }
+
+  // Set vehicle status
+  const vehPill=$('edit-ot-veh-pill');
+  const vehStatus=$('edit-ot-veh-status');
+  if(o.vehiculoId){
+    if(vehStatus)vehStatus.innerHTML='<span style="color:var(--green)">✓ Vehículo registrado</span>';
+    if(vehPill){
+      vehPill.style.display='block';
+      vehPill.innerHTML=`<span class="badge b-orange">${o.patente}</span> ${[o.marca,o.modelo].filter(Boolean).join(' ')}`;
+    }
+  } else if(o.patente){
+    if(vehStatus)vehStatus.innerHTML='<span style="color:var(--amber)">⚠ Patente sin vehículo registrado</span>';
+    if(vehPill){vehPill.style.display='block';vehPill.innerHTML=`<span class="badge b-amber">${o.patente}</span> <span style="color:var(--text3);font-size:11px">sin registro en sistema</span>`;}
+  } else {
+    if(vehStatus)vehStatus.innerHTML='<span style="color:var(--text3)">Sin vehículo asignado</span>';
+    if(vehPill)vehPill.style.display='none';
+  }
   // Init multi-mechanic picker with current mechanics
   const currentMecIds=o.mecanicos?o.mecanicos.map(m=>m.id):(o.mecanicoId?o.mecanicoId.split(',').filter(Boolean):[]);
   initMecPicker('edit-ot', currentMecIds);
   // Clear add-item fields
   $('edit-ot-prod-txt').value='';$('edit-ot-prod-id').value='';
   $('edit-ot-pu').value='';$('edit-ot-qty').value=1;
+  // Load existing images
+  _editOTImgs=[...(o.imgs||[])];
+  renderEditOTImgs();
   renderEditOTItems();
   $('modal-edit-ot').style.display='flex';
   document.body.style.overflow='hidden';
 }
+
+// ── Asignar cliente/vehículo desde edición OT ──────────────
+let _acEditOTCliIdx=-1, _editOTCliIdForVeh=null;
+
+function acSearchEditOTCli(){
+  const q=($('edit-ot-cli')?.value||'').toLowerCase().trim();
+  const drop=$('edit-ot-cli-drop');if(!drop)return;
+  if(!q){drop.style.display='none';return;}
+  const hits=DB.clientes.filter(c=>c.nombre.toLowerCase().includes(q)||(c.rut||'').toLowerCase().includes(q)).slice(0,8);
+  if(!hits.length){drop.style.display='none';return;}
+  drop.innerHTML=hits.map(c=>`<div class="ac-item" onmousedown="acSelEditOTCli('${c.id}')">
+    <div><span class="ac-item-name">${c.nombre}</span>${c.rut?` <span class="ac-item-meta">${c.rut}</span>`:''}</div>
+    ${c.tel?`<div><span class="ac-item-meta">${c.tel}</span></div>`:''}
+  </div>`).join('');
+  drop.style.display='block';_acEditOTCliIdx=-1;
+}
+function acSelEditOTCli(id){
+  const c=DB.clientes.find(x=>x.id===id);if(!c)return;
+  if($('edit-ot-cli'))$('edit-ot-cli').value=c.nombre;
+  if($('edit-ot-cli-id'))$('edit-ot-cli-id').value=c.id;
+  if($('edit-ot-cli-drop'))$('edit-ot-cli-drop').style.display='none';
+  const pill=$('edit-ot-cli-pill');
+  if(pill){pill.style.display='flex';$('edit-ot-cli-pill-nom').textContent=c.nombre+(c.rut?' · '+c.rut:'');}
+  const st=$('edit-ot-cli-status');if(st)st.innerHTML='<span style="color:var(--green)">✓ Cliente registrado</span>';
+  _editOTCliIdForVeh=c.id;
+}
+function acKeyEditOTCli(e){
+  const drop=$('edit-ot-cli-drop');if(!drop||drop.style.display==='none')return;
+  const items=drop.querySelectorAll('.ac-item');if(!items.length)return;
+  if(e.key==='ArrowDown'){e.preventDefault();_acEditOTCliIdx=Math.min(_acEditOTCliIdx+1,items.length-1);items.forEach((it,i)=>it.classList.toggle('ac-active',i===_acEditOTCliIdx));}
+  else if(e.key==='ArrowUp'){e.preventDefault();_acEditOTCliIdx=Math.max(_acEditOTCliIdx-1,0);items.forEach((it,i)=>it.classList.toggle('ac-active',i===_acEditOTCliIdx));}
+  else if(e.key==='Enter'&&_acEditOTCliIdx>=0){e.preventDefault();items[_acEditOTCliIdx]?.dispatchEvent(new MouseEvent('mousedown'));}
+  else if(e.key==='Escape'){drop.style.display='none';}
+}
+function desasignarCliOT(){
+  if($('edit-ot-cli-id'))$('edit-ot-cli-id').value='';
+  const pill=$('edit-ot-cli-pill');if(pill)pill.style.display='none';
+  const st=$('edit-ot-cli-status');if(st)st.innerHTML='<span style="color:var(--text3)">Sin cliente registrado</span>';
+  _editOTCliIdForVeh=null;
+}
+function abrirAsignarCliOT(){
+  const nom=($('edit-ot-cli')?.value||'').trim();
+  if($('qcli-nom'))$('qcli-nom').value=nom;
+  if($('qcli-rut'))$('qcli-rut').value='';
+  if($('qcli-tel'))$('qcli-tel').value='';
+  _qCliCtx='edit-ot';
+  $('modal-cli-rapido').style.display='flex';
+  document.body.style.overflow='hidden';
+}
+function abrirAsignarVehOT(){
+  const cliId=$('edit-ot-cli-id')?.value||_editOTCliIdForVeh||null;
+  const cliNom=$('edit-ot-cli')?.value||'';
+  if(!cliId){toast('Primero asigna o crea el cliente','warn');return;}
+  $('vh-rapido-cli-id').value=cliId;
+  $('vh-rapido-cli-nom').textContent=cliNom;
+  ['vhr-pat','vhr-marca','vhr-mod','vhr-anio','vhr-col','vhr-km','vhr-vin','vhr-obs'].forEach(i=>{if($(i))$(i).value='';});
+  if($('vhr-comb'))$('vhr-comb').value='Diesel';
+  _qCliCtxAfterVH='edit-ot';
+  $('modal-vh-rapido').style.display='flex';
+  document.body.style.overflow='hidden';
+}
+function buscarVehEditOT(pat){
+  const p=pat.trim().toUpperCase();
+  const vehStatus=$('edit-ot-veh-status');
+  const vehPill=$('edit-ot-veh-pill');
+  if(!p){if(vehStatus)vehStatus.innerHTML='<span style="color:var(--text3)">Sin vehículo</span>';if(vehPill)vehPill.style.display='none';return;}
+  const veh=DB.vehiculos.find(v=>v.patente===p);
+  if(veh){
+    if(vehStatus)vehStatus.innerHTML='<span style="color:var(--green)">\u2713 Vehículo encontrado</span>';
+    if(vehPill){vehPill.style.display='block';vehPill.innerHTML=`<span class="badge b-orange">${veh.patente}</span> ${[veh.marca,veh.modelo,veh.anio].filter(Boolean).join(' ')} ${veh.combustible||''}`;}
+  } else {
+    if(vehStatus)vehStatus.innerHTML='<span style="color:var(--amber)">Patente no registrada</span>';
+    if(vehPill){vehPill.style.display='block';vehPill.innerHTML=`<span class="badge b-amber">${p}</span> <span style="font-size:11px;color:var(--text3)">sin registro</span>`;}
+  }
+}
 function cerrarEditOT(){
   $('modal-edit-ot').style.display='none';
   document.body.style.overflow='';
-  _editOTFolio=null;_editOTItems=[];
+  _editOTFolio=null;_editOTItems=[];_editOTImgs=[];
 }
 function renderEditOTItems(){
   const total=_editOTItems.reduce((s,i)=>s+i.sub,0);
@@ -5256,12 +5450,22 @@ function guardarEditOT(){
   const o=DB.ordenes.find(x=>x.folio===_editOTFolio);if(!o){cerrarEditOT();return;}
   const cliNombre=($('edit-ot-cli')?.value||'').trim();
   if(!cliNombre){toast('El nombre del cliente es obligatorio','err');return;}
+  const nuevoCliId=($('edit-ot-cli-id')?.value||'').trim()||null;
   const mecs=getMecsFromPicker('edit-ot');
   o.clienteNombre=cliNombre;
+  // Update clienteId if assigned
+  if(nuevoCliId){
+    o.clienteId=nuevoCliId;
+    const c=DB.clientes.find(x=>x.id===nuevoCliId);
+    if(c){o.clienteRut=c.rut||'';o.tel=c.tel||'';}
+  }
   o.patente=($('edit-ot-pat')?.value||'').trim().toUpperCase();
-  o.marca='';o.modelo='';
+  o.marca='';o.modelo='';o.vehiculoId=null;
   const veh=DB.vehiculos.find(v=>v.patente===o.patente);
-  if(veh){o.vehiculoId=veh.id;o.marca=veh.marca||'';o.modelo=veh.modelo||'';}
+  if(veh){o.vehiculoId=veh.id;o.marca=veh.marca||'';o.modelo=veh.modelo||'';
+    // Also link client to vehicle if client was just registered
+    if(nuevoCliId&&!veh.clienteId)veh.clienteId=nuevoCliId;
+  }
   o.fechaIn=$('edit-ot-fecha-in').value||'';
   o.fechaEst=$('edit-ot-fecha-est').value||'';
   o.km=parseFloat($('edit-ot-km').value)||0;
@@ -5273,6 +5477,7 @@ function guardarEditOT(){
   o.mecanicos=mecs.map(m=>({id:m.id,nombre:m.nombre}));
   o.items=[..._editOTItems];
   o.total=_editOTItems.reduce((s,i)=>s+i.sub,0);
+  o.imgs=[..._editOTImgs];
   save();renderOTs();renderDashboard();cerrarEditOT();
   toast(`Orden ${_editOTFolio} actualizada — ${fmt(o.total)}`);
 }
@@ -6723,7 +6928,6 @@ function guardarVHRapido(){
   if(_qCliCtxAfterVH){
     const ctx=_qCliCtxAfterVH; _qCliCtxAfterVH=null;
     if(ctx==='ot'){
-      // Rebuild vehicle select and pick new one
       const vehSel=$('ot-veh');
       if(vehSel){
         const vehs=DB.vehiculos.filter(v=>v.clienteId===cid);
@@ -6731,6 +6935,16 @@ function guardarVHRapido(){
           vehs.map(v=>`<option value="${v.id}">${v.patente} — ${[v.marca,v.modelo].filter(Boolean).join(' ')}</option>`).join('');
         vehSel.value=newVehId;
         onOTVeh();
+      }
+    } else if(ctx==='edit-ot'){
+      if($('edit-ot-pat'))$('edit-ot-pat').value=pat;
+      const vehStatus=$('edit-ot-veh-status');
+      const vehPill=$('edit-ot-veh-pill');
+      if(vehStatus)vehStatus.innerHTML='<span style="color:var(--green)">✓ Vehículo registrado</span>';
+      if(vehPill){
+        vehPill.style.display='block';
+        const newV=DB.vehiculos.find(v=>v.id===newVehId);
+        vehPill.innerHTML=`<span class="badge b-orange">${pat}</span> ${newV?[newV.marca,newV.modelo].filter(Boolean).join(' '):''} <span style="color:var(--green);font-size:10px">✓ recién registrado</span>`;
       }
     }
     // For cot/v, vehicle selection is optional — just populate the name
