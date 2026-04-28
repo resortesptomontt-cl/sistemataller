@@ -729,7 +729,28 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
     </div>
   </div>
   <div class="card">
-    <div class="card-title"><div class="card-title-left">Inventario</div><span id="cnt-inv" style="font-size:11px;color:var(--text2)"></span></div>
+    <div class="card-title">
+      <div class="card-title-left">Inventario</div>
+      <span id="cnt-inv" style="font-size:11px;color:var(--text2)"></span>
+      <div style="display:flex;gap:6px;margin-left:auto">
+        <select id="exp-inv-cat" style="padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius);font-size:11px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);outline:none">
+          <option value="">Exportar: Todo</option>
+        </select>
+        <button class="btn btn-xs btn-teal" onclick="exportarInventarioExcel()">⬇ Exportar</button>
+        <label class="btn btn-xs" style="cursor:pointer" title="Importar cambios masivos desde Excel">
+          ⬆ Actualizar masivo
+          <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importarActualizacionInventario(this)">
+        </label>
+      </div>
+    </div>
+    <div id="inv-update-preview" style="display:none;background:var(--amber-light);border:1px solid var(--amber);border-radius:var(--radius);padding:10px 14px;margin-bottom:10px">
+      <div style="font-size:12px;font-weight:600;margin-bottom:6px" id="inv-update-info"></div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:8px">Revisa los cambios antes de aplicar. Solo se actualizan los campos que hayas modificado.</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-primary btn-sm" onclick="aplicarActualizacionInventario()">✓ Aplicar cambios</button>
+        <button class="btn btn-sm" onclick="cancelarActualizacionInventario()">✕ Cancelar</button>
+      </div>
+    </div>
     <div class="sbar">
       <input id="sp" placeholder="Buscar nombre, código..." oninput="renderInventario()">
       <select id="sp-cat-filter" onchange="renderInventario()" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text);outline:none">
@@ -2287,6 +2308,12 @@ function llenarSelectsCat(){
       el.innerHTML=DB.categorias.map(c=>`<option${c===cur?' selected':''}>${c}</option>`).join('');
     }
   });
+  // Also populate export category selector
+  const expCat=$('exp-inv-cat');
+  if(expCat){
+    const cur=expCat.value;
+    expCat.innerHTML='<option value="">Exportar: Todo</option>'+DB.categorias.map(c=>`<option value="${c}"${c===cur?' selected':''}>${c}</option>`).join('');
+  }
 }
 // ══════════════════════════════════════════════════
 const $ = id => document.getElementById(id);
@@ -3071,31 +3098,62 @@ function renderDashboard(){
     }).join('')+'</tbody></table></div>':
     '<div class="empty"><div class="empty-icon">✅</div>No hay órdenes activas</div>';
 
-  // Top mecánicos del mes
+  // Top mecánicos del mes — individual, sumando cada OT por separado
   const mecMap={};
   otsMes.forEach(o=>{
-    if(!o.mecanico)return;
-    if(!mecMap[o.mecanico])mecMap[o.mecanico]={ots:0,total:0};
-    mecMap[o.mecanico].ots++;
-    mecMap[o.mecanico].total+=o.total||0;
+    // Get all mechanics involved in this OT
+    let mecIds=[];
+    if(o.mecanicos&&o.mecanicos.length){
+      mecIds=o.mecanicos;
+    } else if(o.mecanicoId){
+      // Legacy: single or comma-separated IDs
+      const ids=o.mecanicoId.split(',').filter(Boolean);
+      mecIds=ids.map(id=>{
+        const m=DB.mecanicos.find(x=>x.id===id);
+        return m?{id:m.id,nombre:m.nombre}:{id,nombre:o.mecanico||id};
+      });
+    } else if(o.mecanico){
+      mecIds=[{id:o.mecanico,nombre:o.mecanico}];
+    }
+    if(!mecIds.length)return;
+    // Each mechanic gets credited for the full OT count (1 OT each)
+    // but total split proportionally if working in group
+    const nMec=mecIds.length;
+    mecIds.forEach(m=>{
+      const key=m.id||m.nombre;
+      if(!mecMap[key])mecMap[key]={nombre:m.nombre,ots:0,total:0,enGrupo:0};
+      mecMap[key].ots++;
+      mecMap[key].total+=(o.total||0)/nMec; // split total proportionally
+      if(nMec>1)mecMap[key].enGrupo++;
+    });
   });
-  const mecList=Object.entries(mecMap).sort((a,b)=>b[1].total-a[1].total);
+  const mecList=Object.entries(mecMap).sort((a,b)=>b[1].ots-a[1].ots||b[1].total-a[1].total);
   const mEl=$('dash-mecanicos');
   if(mEl){
     if(!mecList.length){mEl.innerHTML='<div class="empty" style="padding:12px"><div class="empty-icon">👷</div>Sin datos este mes</div>';}
     else{
-      mEl.innerHTML=mecList.map(([nom,d],i)=>`
+      mEl.innerHTML=mecList.map(([key,d],i)=>`
         <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
-          <span style="font-size:14px;width:20px;text-align:center;color:var(--text3)">${['🥇','🥈','🥉'][i]||'·'}</span>
-          <span style="flex:1;font-weight:500">${nom}</span>
-          <span style="font-size:10px;color:var(--text2)">${d.ots} OT${d.ots!==1?'s':''}</span>
-          <span style="font-family:'DM Mono',monospace;font-weight:600">${fmt(d.total)}</span>
+          <span style="font-size:14px;width:20px;text-align:center">${['🥇','🥈','🥉'][i]||'<span style="color:var(--text3)">·</span>'}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:500">${d.nombre}</div>
+            ${d.enGrupo>0?`<div style="font-size:10px;color:var(--text3)">${d.enGrupo} en equipo · ${d.ots-d.enGrupo} solo</div>`:''}
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:11px;color:var(--text2)">${d.ots} OT${d.ots!==1?'s':''}</div>
+            <div style="font-family:'DM Mono',monospace;font-weight:600;font-size:12px">${fmt(Math.round(d.total))}</div>
+          </div>
         </div>`).join('');
     }
   }
 
   // Stock bajo
-  const bajo=DB.inventario.filter(p=>p.smin>0&&p.stock<=p.smin&&p.categoria!=='Mano de obra');
+  const bajo=DB.inventario.filter(p=>
+    p.categoria!=='Mano de obra' && (
+      p.stock===0 ||                              // sin stock → siempre alerta
+      (p.smin>0 && p.stock<=p.smin)              // bajo mínimo configurado
+    )
+  );
   $('dash-stock').innerHTML=bajo.length?
     bajo.slice(0,8).map(p=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px">
       <span>${p.nombre}</span>
@@ -3537,7 +3595,7 @@ function renderInventario(){
   let lista=DB.inventario;
   if(q)lista=lista.filter(p=>p.nombre.toLowerCase().includes(q)||(p.codigo||'').toLowerCase().includes(q));
   if(cat)lista=lista.filter(p=>p.categoria===cat);
-  if(stockF==='bajo')lista=lista.filter(p=>p.smin>0&&p.stock<=p.smin);
+  if(stockF==='bajo')lista=lista.filter(p=>p.categoria!=='Mano de obra'&&(p.stock===0||(p.smin>0&&p.stock<=p.smin)));
   if(stockF==='cero')lista=lista.filter(p=>p.stock===0&&p.categoria!=='Mano de obra');
   $('cnt-inv').textContent=`${lista.length} producto${lista.length!==1?'s':''}`;
   const el=$('lista-inventario');
@@ -5047,6 +5105,104 @@ function hideGlobalResults(){$('gsearch-results').style.display='none';}
 // ══════════════════════════════════════════════════
 // EXPORT EXCEL
 // ══════════════════════════════════════════════════
+let _invUpdatePendiente=[];
+
+function exportarInventarioExcel(){
+  const cat=$('exp-inv-cat')?.value||'';
+  let lista=DB.inventario;
+  if(cat)lista=lista.filter(p=>p.categoria===cat);
+  if(!lista.length){toast('No hay productos para exportar','warn');return;}
+  const wb=XLSX.utils.book_new();
+  const rows=lista.map(p=>({
+    'ID (no editar)':p.id,
+    'Nombre':p.nombre,
+    'Código':p.cod||'',
+    'Categoría':p.categoria||'',
+    'Unidad':p.unidad||'und',
+    'Stock actual':p.stock||0,
+    'Stock mínimo':p.smin||0,
+    'Costo ($)':p.costo||0,
+    'Precio ($)':p.precio||0,
+  }));
+  const ws=XLSX.utils.json_to_sheet(rows);
+  // Column widths
+  ws['!cols']=[{wch:24},{wch:30},{wch:14},{wch:18},{wch:8},{wch:12},{wch:12},{wch:12},{wch:12}];
+  XLSX.utils.book_append_sheet(wb,ws,cat?cat.slice(0,31):'Inventario');
+  XLSX.writeFile(wb,`Inventario${cat?'_'+cat:''}_${today()}.xlsx`);
+  toast(`Excel exportado con ${lista.length} productos`);
+}
+
+function importarActualizacionInventario(input){
+  const file=input.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'binary'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws);
+      if(!rows.length){toast('El archivo está vacío','err');return;}
+      // Match by ID
+      const cambios=[];
+      rows.forEach(row=>{
+        const id=row['ID (no editar)']||row['ID']||row['id'];
+        if(!id)return;
+        const prod=DB.inventario.find(p=>p.id===String(id));
+        if(!prod)return;
+        const cambio={id:prod.id,nombre:prod.nombre,antes:{},despues:{}};
+        const campos={
+          'Nombre':'nombre','Código':'cod','Categoría':'categoria',
+          'Unidad':'unidad','Stock actual':'stock','Stock mínimo':'smin',
+          'Costo ($)':'costo','Precio ($)':'precio'
+        };
+        let hayCambio=false;
+        Object.entries(campos).forEach(([col,key])=>{
+          if(row[col]===undefined||row[col]===null)return;
+          const nuevoVal=key==='nombre'||key==='cod'||key==='categoria'||key==='unidad'
+            ?String(row[col]).trim()
+            :parseFloat(row[col])||0;
+          if(String(nuevoVal)!==String(prod[key]||'')){
+            cambio.antes[key]=prod[key];
+            cambio.despues[key]=nuevoVal;
+            hayCambio=true;
+          }
+        });
+        if(hayCambio)cambios.push(cambio);
+      });
+      _invUpdatePendiente=cambios;
+      const wrap=$('inv-update-preview');
+      const info=$('inv-update-info');
+      if(!cambios.length){toast('No se detectaron cambios respecto al inventario actual','warn');input.value='';return;}
+      if(wrap)wrap.style.display='block';
+      if(info)info.innerHTML=`⚠️ Se detectaron <strong>${cambios.length}</strong> producto${cambios.length!==1?'s':''} con cambios de las ${rows.length} filas del archivo.
+        <div style="max-height:120px;overflow-y:auto;margin-top:6px;font-size:10px">
+          ${cambios.slice(0,8).map(c=>`<div style="padding:2px 0;border-bottom:1px solid var(--border)">
+            <strong>${c.nombre}</strong>: ${Object.entries(c.despues).map(([k,v])=>`${k}→<em>${v}</em>`).join(', ')}
+          </div>`).join('')}
+          ${cambios.length>8?`<div style="color:var(--text3)">... y ${cambios.length-8} más</div>`:''}
+        </div>`;
+    }catch(err){toast('Error leyendo el archivo: '+err.message,'err');}
+    input.value='';
+  };
+  r.readAsBinaryString(file);
+}
+
+function aplicarActualizacionInventario(){
+  let actualizados=0;
+  _invUpdatePendiente.forEach(cambio=>{
+    const prod=DB.inventario.find(p=>p.id===cambio.id);
+    if(!prod)return;
+    Object.entries(cambio.despues).forEach(([key,val])=>{prod[key]=val;});
+    actualizados++;
+  });
+  save();cancelarActualizacionInventario();llenarSelectsCat();renderInventario();
+  toast(`✅ ${actualizados} producto${actualizados!==1?'s':''} actualizados correctamente`);
+}
+
+function cancelarActualizacionInventario(){
+  _invUpdatePendiente=[];
+  const wrap=$('inv-update-preview');if(wrap)wrap.style.display='none';
+}
+
 function exportarExcel(){
   const wb=XLSX.utils.book_new();
   // Ventas
