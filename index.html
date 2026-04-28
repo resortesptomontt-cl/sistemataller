@@ -914,14 +914,33 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
     </div>
   </div>
   <div class="card">
-    <div class="card-title"><div class="card-title-left">Órdenes de trabajo</div></div>
-    <div class="sbar">
+    <div class="card-title">
+      <div class="card-title-left">Órdenes de trabajo</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)">
+        <span id="ot-vista-label">Mes actual + pendientes</span>
+        <button class="btn btn-xs" id="ot-ver-todas-btn" onclick="toggleOTVerTodas()">Ver todas</button>
+      </div>
+    </div>
+    <div class="sbar" style="margin-bottom:8px">
       <input id="s-ot" placeholder="Buscar N° orden, cliente, patente, mecánico..." oninput="renderOTs()">
       <select id="s-ot-est" onchange="renderOTs()" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text);outline:none">
         <option value="">Todos los estados</option>
         <option>Recibido</option><option>En proceso</option><option>Listo</option><option>Entregado</option><option>Vencido</option>
       </select>
     </div>
+    <!-- Filtro de mes/año para historial -->
+    <div id="ot-filtro-mes-wrap" style="display:none;background:var(--surface2);border-radius:var(--radius);padding:8px 12px;margin-bottom:8px;display:none;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:12px;color:var(--text2)">Buscar en mes:</span>
+      <select id="s-ot-mes" onchange="renderOTs()" style="padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);outline:none">
+        <option value="">— Todos los meses —</option>
+        <option>Enero</option><option>Febrero</option><option>Marzo</option><option>Abril</option>
+        <option>Mayo</option><option>Junio</option><option>Julio</option><option>Agosto</option>
+        <option>Septiembre</option><option>Octubre</option><option>Noviembre</option><option>Diciembre</option>
+      </select>
+      <input id="s-ot-anio" type="number" placeholder="Año" min="2020" max="2030" oninput="renderOTs()"
+        style="width:80px;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-family:'DM Mono',monospace;background:var(--bg);color:var(--text);outline:none">
+    </div>
+    <div id="ot-resumen-filtro" style="font-size:11px;color:var(--text2);margin-bottom:6px"></div>
     <div id="lista-ots"></div>
   </div>
 </div>
@@ -3971,16 +3990,95 @@ function eliminarOT(folio){
   DB.ordenes=DB.ordenes.filter(o=>o.folio!==folio);
   save();renderOTs();renderDashboard();toast('Orden eliminada');
 }
+let _otVerTodas=false;
+
+function toggleOTVerTodas(){
+  _otVerTodas=!_otVerTodas;
+  const btn=$('ot-ver-todas-btn');
+  const wrap=$('ot-filtro-mes-wrap');
+  const lbl=$('ot-vista-label');
+  if(_otVerTodas){
+    if(btn)btn.textContent='← Volver a vista actual';
+    if(wrap)wrap.style.display='flex';
+    if(lbl)lbl.textContent='Todas las órdenes';
+    // Set current month/year as default for the filter
+    const mo=new Date().getMonth();
+    const anio=new Date().getFullYear();
+    if($('s-ot-mes'))$('s-ot-mes').selectedIndex=mo+1;
+    if($('s-ot-anio'))$('s-ot-anio').value=anio;
+  } else {
+    if(btn)btn.textContent='Ver todas';
+    if(wrap)wrap.style.display='none';
+    if(lbl)lbl.textContent='Mes actual + pendientes';
+    if($('s-ot-mes'))$('s-ot-mes').selectedIndex=0;
+    if($('s-ot-anio'))$('s-ot-anio').value='';
+  }
+  renderOTs();
+}
+
 function renderOTs(){
   const q=($('s-ot')?.value||'').toLowerCase();
   const est=$('s-ot-est')?.value||'';
   const hoy=today();
-  let lista=DB.ordenes;
-  if(q)lista=lista.filter(o=>o.folio.toLowerCase().includes(q)||o.clienteNombre.toLowerCase().includes(q)||(o.patente||'').toLowerCase().includes(q)||(o.mecanico||'').toLowerCase().includes(q));
+  const mesActual=hoy.slice(0,7); // YYYY-MM
+
+  let lista;
+
+  if(_otVerTodas){
+    // Historial completo, filtrable por mes/año
+    lista=[...DB.ordenes];
+    const mesFiltro=$('s-ot-mes')?.value||'';
+    const anioFiltro=parseInt($('s-ot-anio')?.value)||0;
+    if(mesFiltro||anioFiltro){
+      lista=lista.filter(o=>{
+        const fechaOT=(o.fechaIn||o.creado||'').slice(0,7);
+        const [oy,om]=fechaOT.split('-');
+        if(anioFiltro&&parseInt(oy)!==anioFiltro)return false;
+        if(mesFiltro&&meses[parseInt(om)-1]!==mesFiltro)return false;
+        return true;
+      });
+    }
+  } else {
+    // Smart filter: mes actual + todas las pendientes (no Entregado)
+    lista=DB.ordenes.filter(o=>{
+      const fechaOT=(o.fechaIn||o.creado||'').slice(0,7);
+      const esMesActual=fechaOT===mesActual;
+      const esPendiente=o.estado!=='Entregado';
+      return esMesActual||esPendiente;
+    });
+  }
+
+  // Apply text search
+  if(q)lista=lista.filter(o=>
+    o.folio.toLowerCase().includes(q)||
+    o.clienteNombre.toLowerCase().includes(q)||
+    (o.patente||'').toLowerCase().includes(q)||
+    (o.mecanico||'').toLowerCase().includes(q)||
+    (o.diag||'').toLowerCase().includes(q)
+  );
+
+  // Apply status filter
   if(est==='Vencido')lista=lista.filter(o=>o.fechaEst&&o.fechaEst<hoy&&o.estado!=='Listo'&&o.estado!=='Entregado');
   else if(est)lista=lista.filter(o=>o.estado===est);
+
+  // Sort: active first by date desc, then delivered
+  lista.sort((a,b)=>{
+    const aAct=a.estado!=='Entregado',bAct=b.estado!=='Entregado';
+    if(aAct&&!bAct)return -1;
+    if(!aAct&&bAct)return 1;
+    return (b.fechaIn||'')>(a.fechaIn||'')?1:-1;
+  });
+
+  // Summary label
+  const res=$('ot-resumen-filtro');
+  if(res){
+    const activas=lista.filter(o=>o.estado!=='Entregado').length;
+    const entregadas=lista.filter(o=>o.estado==='Entregado').length;
+    res.textContent=`Mostrando ${lista.length} orden${lista.length!==1?'es':''} · ${activas} activa${activas!==1?'s':''} · ${entregadas} entregada${entregadas!==1?'s':''}`;
+  }
+
   const el=$('lista-ots');
-  if(!lista.length){el.innerHTML='<div class="empty"><div class="empty-icon">🔧</div>No hay órdenes</div>';return;}
+  if(!lista.length){el.innerHTML='<div class="empty"><div class="empty-icon">🔧</div>'+(q||est?'Sin resultados para la búsqueda':'No hay órdenes para mostrar')+'</div>';return;}
   el.innerHTML=lista.map(o=>{
     const venc=o.fechaEst&&o.fechaEst<hoy&&o.estado!=='Listo'&&o.estado!=='Entregado';
     const entregado=o.estado==='Entregado';
