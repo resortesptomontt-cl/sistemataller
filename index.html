@@ -5274,7 +5274,7 @@ function exportarInventarioExcel(){
   const rows=lista.map(p=>({
     'ID (no editar)':p.id,
     'Nombre':p.nombre,
-    'Código':p.cod||'',
+    'Código':p.codigo||'',
     'Categoría':p.categoria||'',
     'Unidad':p.unidad||'und',
     'Stock actual':p.stock||0,
@@ -5318,7 +5318,7 @@ function importarInventarioCompleto(input){
             tipo:'actualizar',
             id:existente.id,
             nombre:String(row['Nombre']||existente.nombre).trim(),
-            cod:String(row['Código']||row['Codigo']||existente.cod||'').trim(),
+            codigo:String(row['Código']||row['Codigo']||existente.codigo||existente.cod||'').trim(),
             categoria:String(row['Categoría']||row['Categoria']||existente.categoria||'').trim(),
             unidad:String(row['Unidad']||existente.unidad||'und').trim(),
             stock:parseFloat(row['Stock actual']??existente.stock)||0,
@@ -5333,7 +5333,7 @@ function importarInventarioCompleto(input){
             tipo:'nuevo',
             id:uid(),
             nombre,
-            cod:String(row['Código']||row['Codigo']||'').trim(),
+            codigo:String(row['Código']||row['Codigo']||'').trim(),
             categoria:String(row['Categoría']||row['Categoria']||'Sin categoría').trim(),
             unidad:String(row['Unidad']||'und').trim(),
             stock:parseFloat(row['Stock actual'])||0,
@@ -5368,14 +5368,14 @@ function aplicarImportacionCompleta(){
     if(item.tipo==='actualizar'){
       const prod=DB.inventario.find(p=>p.id===item.id);
       if(!prod)return;
-      Object.assign(prod,{nombre:item.nombre,cod:item.cod,categoria:item.categoria,
-        unidad:item.unidad,stock:item.stock,smin:item.smin,costo:item.costo,precio:item.precio});
+      Object.assign(prod,{nombre:item.nombre,codigo:item.codigo,categoria:item.categoria,
+        unidad:item.unidad,stock:item.stock,smin:item.smin,costo:item.costo,precio:item.precio,desc:item.desc||''});
       actualizados++;
       if(item.categoria)catNuevas.add(item.categoria);
     } else {
-      DB.inventario.push({id:item.id,nombre:item.nombre,cod:item.cod,
+      DB.inventario.push({id:item.id,nombre:item.nombre,codigo:item.codigo,
         categoria:item.categoria,unidad:item.unidad,
-        stock:item.stock,smin:item.smin,costo:item.costo,precio:item.precio,
+        stock:item.stock,smin:item.smin,costo:item.costo,precio:item.precio,desc:item.desc||'',
         imgs:[],histStock:[],creado:new Date().toISOString()});
       agregados++;
       if(item.categoria)catNuevas.add(item.categoria);
@@ -5410,14 +5410,14 @@ function importarActualizacionInventario(input){
         if(!prod)return;
         const cambio={id:prod.id,nombre:prod.nombre,antes:{},despues:{}};
         const campos={
-          'Nombre':'nombre','Código':'cod','Categoría':'categoria',
+          'Nombre':'nombre','Código':'codigo','Categoría':'categoria',
           'Unidad':'unidad','Stock actual':'stock','Stock mínimo':'smin',
           'Costo ($)':'costo','Precio ($)':'precio'
         };
         let hayCambio=false;
         Object.entries(campos).forEach(([col,key])=>{
           if(row[col]===undefined||row[col]===null)return;
-          const nuevoVal=key==='nombre'||key==='cod'||key==='categoria'||key==='unidad'
+          const nuevoVal=key==='nombre'||key==='codigo'||key==='categoria'||key==='unidad'
             ?String(row[col]).trim()
             :parseFloat(row[col])||0;
           if(String(nuevoVal)!==String(prod[key]||'')){
