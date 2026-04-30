@@ -704,7 +704,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
   </div>
   <div id="inv-tab-cats" class="card" style="display:none">
     <div class="card-title"><div class="card-title-left">Gestionar categorías</div></div>
-    <p style="font-size:12px;color:var(--text2);margin-bottom:14px">Las categorías se usan para clasificar los productos del inventario. Puedes agregar las tuyas y eliminar las que no uses (solo si no tienen productos asignados).</p>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:14px">Haz clic en <strong>✏ Renombrar</strong> para editar el nombre de una categoría — todos los productos se actualizan automáticamente.</p>
     <div style="display:flex;gap:8px;margin-bottom:16px;align-items:flex-end">
       <div class="field" style="flex:1"><label>Nueva categoría</label><input id="cat-nueva" placeholder="Ej: Dirección, Carrocería, Accesorios..." onkeydown="if(event.key==='Enter')agregarCat()"></div>
       <button class="btn btn-primary" onclick="agregarCat()">+ Agregar</button>
@@ -3592,38 +3592,87 @@ function eliminarProducto(id){
 }
 
 // ══════════════════════════════════════════════════
-// CATEGORÍAS
+// CATEGORÍAS — con renombrado inline
 // ══════════════════════════════════════════════════
 function agregarCat(){
   const nom=($('cat-nueva')?.value||'').trim();
   if(!nom){toast('Escribe el nombre de la categoría','err');return;}
   if(DB.categorias.find(c=>c.toLowerCase()===nom.toLowerCase())){toast('Esa categoría ya existe','warn');return;}
   DB.categorias.push(nom);
-  save();llenarSelectsCat();renderCats_inv();$('cat-nueva').value='';
+  save();llenarSelectsCat();renderCats_inv();
+  if($('cat-nueva'))$('cat-nueva').value='';
   toast(`Categoría "${nom}" agregada`);
 }
+
 function eliminarCat(cat){
-  const enUso=DB.inventario.some(p=>p.categoria===cat);
-  if(enUso){toast(`No se puede eliminar: "${cat}" tiene productos asignados`,'warn');return;}
-  if(!confirm(`¿Eliminar la categoría "${cat}"?`))return;
+  if(!confirm(`¿Eliminar la categoría "${cat}"?\n\nLos ${DB.inventario.filter(p=>p.categoria===cat).length} productos de esta categoría pasarán a "Sin categoría".`))return;
   DB.categorias=DB.categorias.filter(c=>c!==cat);
-  save();llenarSelectsCat();renderCats_inv();toast(`Categoría "${cat}" eliminada`);
+  DB.inventario.forEach(p=>{if(p.categoria===cat)p.categoria='Sin categoría';});
+  if(!DB.categorias.includes('Sin categoría')&&DB.inventario.some(p=>p.categoria==='Sin categoría'))
+    DB.categorias.push('Sin categoría');
+  save();llenarSelectsCat();renderCats_inv();renderInventario();
+  toast(`Categoría "${cat}" eliminada`);
 }
+
+function renombrarCat(idx){
+  const cat=DB.categorias[idx];
+  const el=$(`cat-edit-${idx}`);
+  const row=$(`cat-row-${idx}`);
+  if(!el||!row)return;
+  // Show inline editor
+  row.innerHTML=`
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:18px">📦</span>
+      <input id="cat-rename-input-${idx}" value="${cat}" style="flex:1;padding:7px 10px;border:2px solid var(--accent);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);outline:none"
+        onkeydown="if(event.key==='Enter')confirmarRenombrar(${idx});if(event.key==='Escape')cancelarRenombrar(${idx})">
+      <button class="btn btn-xs btn-primary" onclick="confirmarRenombrar(${idx})">✓ Guardar</button>
+      <button class="btn btn-xs" onclick="cancelarRenombrar(${idx})">✕ Cancelar</button>
+    </div>`;
+  setTimeout(()=>{
+    const inp=$(`cat-rename-input-${idx}`);
+    if(inp){inp.focus();inp.select();}
+  },50);
+}
+
+function confirmarRenombrar(idx){
+  const nuevoNom=($(`cat-rename-input-${idx}`)?.value||'').trim();
+  const viejoNom=DB.categorias[idx];
+  if(!nuevoNom){toast('El nombre no puede estar vacío','err');return;}
+  if(nuevoNom===viejoNom){cancelarRenombrar(idx);return;}
+  if(DB.categorias.some((c,i)=>i!==idx&&c.toLowerCase()===nuevoNom.toLowerCase())){
+    toast('Ya existe una categoría con ese nombre','err');return;
+  }
+  // Rename in all products
+  const actualizados=DB.inventario.filter(p=>p.categoria===viejoNom).length;
+  DB.inventario.forEach(p=>{if(p.categoria===viejoNom)p.categoria=nuevoNom;});
+  DB.categorias[idx]=nuevoNom;
+  save();llenarSelectsCat();renderCats_inv();renderInventario();
+  toast(`"${viejoNom}" → "${nuevoNom}" · ${actualizados} producto${actualizados!==1?'s':''} actualizados`);
+}
+
+function cancelarRenombrar(idx){
+  renderCats_inv();
+}
+
 function renderCats_inv(){
   const el=$('lista-cats');if(!el)return;
   if(!DB.categorias.length){el.innerHTML='<div class="empty"><div class="empty-icon">🏷️</div>Sin categorías</div>';return;}
-  el.innerHTML=`<div class="tw"><table><thead><tr><th>Categoría</th><th>Color</th><th>Productos</th><th>Acción</th></tr></thead><tbody>`+
-    DB.categorias.map((cat,i)=>{
-      const count=DB.inventario.filter(p=>p.categoria===cat).length;
-      const badge=CAT_COLORS[i%CAT_COLORS.length];
-      const isPredefined=CATS_DEFAULT.includes(cat);
-      return`<tr>
-        <td style="font-weight:500">${cat}${isPredefined?` <span style="font-size:10px;color:var(--text3)">(predefinida)</span>`:''}</td>
-        <td><span class="badge ${badge}">${cat}</span></td>
-        <td><span style="font-family:'DM Mono',monospace">${count}</span> producto${count!==1?'s':''}</td>
-        <td>${!isPredefined||count===0?`<button class="btn btn-xs btn-red" onclick="eliminarCat('${cat.replace(/'/g,"\\'")}')" ${count>0?'title="Tiene productos asignados"':''}>Eliminar</button>`:'<span style="font-size:11px;color:var(--text3)">—</span>'}</td>
-      </tr>`;
-    }).join('')+'</tbody></table></div>';
+  el.innerHTML=DB.categorias.map((cat,i)=>{
+    const count=DB.inventario.filter(p=>p.categoria===cat).length;
+    return`<div id="cat-row-${i}">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:18px">📦</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:13px" id="cat-edit-${i}">${cat}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:1px">${count} producto${count!==1?'s':''}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn btn-xs btn-teal" onclick="renombrarCat(${i})">✏ Renombrar</button>
+          <button class="btn btn-xs btn-red" onclick="eliminarCat('${cat.replace(/'/g,"\\'")}')">🗑</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function renderInventario(){
