@@ -699,7 +699,9 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
       <div class="field"><label>Stock mínimo</label><input id="p-smin" type="number" value="0" min="0"></div>
       <div class="field"><label>Precio costo ($)</label><input id="p-costo" type="number" placeholder="0" min="0"></div>
       <div class="field"><label>Precio venta ($) *</label><input id="p-precio" type="number" placeholder="0" min="0"></div>
-    </div>
+      <div class="field" style="grid-column:1/-1"><label>Descripción <span style="font-weight:400;color:var(--text3);font-size:10px">— visible al hacer clic en el producto</span></label>
+        <textarea id="p-desc" placeholder="Ej: Hoja de ballesta para Ford F-150 4x4, medidas 60x8mm, 7 hojas..." rows="2" style="width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);outline:none;resize:vertical"></textarea>
+      </div>
     <div style="display:flex;gap:6px"><button class="btn btn-primary" onclick="guardarProducto()">✓ Agregar</button><button class="btn" onclick="limpiarP()">↺ Limpiar</button></div>
   </div>
   <div id="inv-tab-cats" class="card" style="display:none">
@@ -2254,6 +2256,9 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
         <div class="field"><label>Precio venta ($) *</label><input id="ep-precio" type="number" min="0" placeholder="0"></div>
       </div>
       <div id="ep-margen" style="font-size:12px;padding:8px 12px;border-radius:var(--radius);background:var(--surface2);text-align:center"></div>
+      <div class="field" style="margin-top:10px"><label>Descripción <span style="font-weight:400;color:var(--text3);font-size:10px">— opcional, visible al hacer clic en el producto</span></label>
+        <textarea id="ep-desc" rows="2" placeholder="Ej: Especificaciones técnicas, compatibilidad, notas de uso..." style="width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);outline:none;resize:vertical"></textarea>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="cerrarModalProd()">Cancelar</button>
@@ -3599,10 +3604,11 @@ function guardarProducto(){
     smin:parseFloat($('p-smin').value)||0,
     costo:parseFloat($('p-costo').value)||0,
     precio:parseFloat($('p-precio').value)||0,
+    desc:($('p-desc')?.value||'').trim(),
     creado:new Date().toISOString()});
   save();renderInventario();limpiarP();toast('Producto agregado');
 }
-function limpiarP(){['p-nom','p-cod','p-stock','p-smin','p-costo','p-precio'].forEach(i=>{if($(i))$(i).value='';});}
+function limpiarP(){['p-nom','p-cod','p-stock','p-smin','p-costo','p-precio','p-desc'].forEach(i=>{if($(i))$(i).value='';});}
 function eliminarProducto(id){
   if(!confirm('¿Eliminar este producto?'))return;
   DB.inventario=DB.inventario.filter(p=>p.id!==id);
@@ -3710,7 +3716,11 @@ function renderInventario(){
       const margen=p.costo>0?Math.round(((p.precio-p.costo)/p.costo)*100):null;
       const stockCls=p.categoria==='Mano de obra'?'':p.stock===0?'stock-crit':p.smin>0&&p.stock<=p.smin?'stock-warn':'stock-ok';
       return`<tr>
-        <td style="font-weight:500">${p.nombre}</td>
+        <td style="font-weight:500">
+          ${p.nombre}
+          ${p.desc?`<span onclick="verDescProd('${p.id}')" title="Ver descripción"
+            style="margin-left:6px;font-size:10px;background:var(--teal-light);color:var(--teal);border:1px solid var(--teal);border-radius:10px;padding:1px 7px;cursor:pointer;white-space:nowrap">📋 desc.</span>`:''}
+        </td>
         <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text2)">${p.codigo||'—'}</td>
         <td><span class="badge ${getCatBadge(p.categoria)}">${p.categoria}</span></td>
         <td>${p.unidad}</td>
@@ -3727,6 +3737,40 @@ function renderInventario(){
     }).join('')+'</tbody></table></div>';
 }
 
+function verDescProd(id){
+  const p=DB.inventario.find(x=>x.id===id);if(!p||!p.desc)return;
+  // Create or reuse a simple modal
+  let m=$('modal-prod-desc');
+  if(!m){
+    m=document.createElement('div');
+    m.id='modal-prod-desc';
+    m.className='modal-overlay';
+    m.style.cssText='display:none';
+    m.innerHTML=`<div class="modal" style="max-width:460px">
+      <div class="modal-hdr">
+        <h3 id="prod-desc-titulo">Descripción</h3>
+        <button class="btn btn-ghost btn-sm" onclick="$('modal-prod-desc').style.display='none';document.body.style.overflow=''">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="prod-desc-content" style="font-size:13px;color:var(--text);line-height:1.6;white-space:pre-wrap"></div>
+      </div>
+      <div class="modal-footer" style="justify-content:flex-end">
+        <button class="btn btn-xs btn-teal" onclick="abrirModalProd('${id}')">✏ Editar producto</button>
+        <button class="btn btn-sm" onclick="$('modal-prod-desc').style.display='none';document.body.style.overflow=''">Cerrar</button>
+      </div>
+    </div>`;
+    m.onclick=e=>{if(e.target===m){m.style.display='none';document.body.style.overflow='';}};
+    document.body.appendChild(m);
+  }
+  $('prod-desc-titulo').textContent=`📋 ${p.nombre}`;
+  $('prod-desc-content').textContent=p.desc;
+  // Update edit button id
+  const editBtn=m.querySelector('.btn-teal');
+  if(editBtn)editBtn.onclick=()=>{m.style.display='none';document.body.style.overflow='';abrirModalProd(id);};
+  m.style.display='flex';
+  document.body.style.overflow='hidden';
+}
+
 let _editProdId=null;
 function abrirModalProd(id){
   const p=DB.inventario.find(x=>x.id===id);
@@ -3740,6 +3784,7 @@ function abrirModalProd(id){
   $('ep-smin').value=p.smin||0;
   $('ep-costo').value=p.costo||0;
   $('ep-precio').value=p.precio;
+  if($('ep-desc'))$('ep-desc').value=p.desc||'';
   actualizarMargenModal();
   ['ep-costo','ep-precio'].forEach(i=>$( i).addEventListener('input',actualizarMargenModal));
   $('modal-prod').style.display='flex';
@@ -3772,6 +3817,7 @@ function guardarEdicionProd(){
   p.smin=parseFloat($('ep-smin').value)||0;
   p.costo=parseFloat($('ep-costo').value)||0;
   p.precio=parseFloat($('ep-precio').value)||0;
+  p.desc=($('ep-desc')?.value||'').trim();
   p.modificado=new Date().toISOString();
   save();renderInventario();cerrarModalProd();
   toast(`"${nom}" actualizado correctamente`);
