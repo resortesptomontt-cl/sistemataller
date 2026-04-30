@@ -859,12 +859,14 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
       </div>
       <div class="field"><label>Vehículo *</label><select id="ot-veh" onchange="onOTVeh()"><option value="">— Seleccionar —</option></select></div>
       <div class="field">
-        <label>Mecánicos asignados <span style="font-weight:400;font-size:10px;color:var(--text3)">— selecciona uno o más</span></label>
-        <div id="ot-mec-pills" style="display:flex;gap:5px;flex-wrap:wrap;min-height:34px;padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);cursor:pointer" onclick="toggleMecPicker('ot')">
-          <span style="font-size:12px;color:var(--text3);align-self:center">Clic para seleccionar...</span>
+        <label>Mecánicos asignados <span style="font-weight:400;font-size:10px;color:var(--text3)">— marca todos los que participan</span></label>
+        <div id="ot-mec-grid" style="display:flex;gap:6px;flex-wrap:wrap;padding:8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);min-height:40px">
+          <span style="font-size:12px;color:var(--text3)">Cargando mecánicos...</span>
         </div>
-        <div id="ot-mec-picker" style="display:none;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow-md);padding:6px;margin-top:3px;max-height:180px;overflow-y:auto;z-index:50;position:relative" id="ot-mec-picker"></div>
         <input type="hidden" id="ot-mec-ids">
+        <!-- Keep legacy elements for getMecsFromPicker compatibility -->
+        <div id="ot-mec-pills" style="display:none"></div>
+        <div id="ot-mec-picker" style="display:none"></div>
       </div>
       <div class="field"><label>Fecha ingreso</label><input id="ot-fecha-in" type="date"></div>
       <div class="field"><label>Fecha entrega estimada</label><input id="ot-fecha-est" type="date"></div>
@@ -2062,12 +2064,13 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
           <div id="edit-ot-veh-pill" style="display:none;margin-top:5px;background:var(--teal-light);border:1px solid var(--teal);border-radius:var(--radius);padding:5px 10px;font-size:12px"></div>
         </div>
         <div class="field">
-          <label>Mecánicos <span style="font-weight:400;font-size:10px;color:var(--text3)">— uno o más</span></label>
-          <div id="edit-ot-mec-pills" style="display:flex;gap:5px;flex-wrap:wrap;min-height:34px;padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);cursor:pointer" onclick="toggleMecPicker('edit-ot')">
-            <span style="font-size:12px;color:var(--text3);align-self:center">Clic para seleccionar...</span>
+          <label>Mecánicos <span style="font-weight:400;font-size:10px;color:var(--text3)">— marca todos los que participan</span></label>
+          <div id="edit-ot-mec-grid" style="display:flex;gap:6px;flex-wrap:wrap;padding:8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);min-height:40px">
+            <span style="font-size:12px;color:var(--text3)">Cargando...</span>
           </div>
-          <div id="edit-ot-mec-picker" style="display:none;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow-md);padding:6px;margin-top:3px;max-height:160px;overflow-y:auto;position:relative;z-index:50"></div>
           <input type="hidden" id="edit-ot-mec-ids">
+          <div id="edit-ot-mec-pills" style="display:none"></div>
+          <div id="edit-ot-mec-picker" style="display:none"></div>
         </div>
         <div class="field"><label>Fecha ingreso</label><input id="edit-ot-fecha-in" type="date"></div>
         <div class="field"><label>Fecha entrega est.</label><input id="edit-ot-fecha-est" type="date"></div>
@@ -2470,17 +2473,35 @@ let _mecSel={}; // {ctx: Set of ids}
 function initMecPicker(ctx, selectedIds=[]){
   if(!_mecSel[ctx])_mecSel[ctx]=new Set();
   _mecSel[ctx]=new Set(selectedIds);
+  renderMecGrid(ctx);
   renderMecPicker(ctx);
   renderMecPills(ctx);
+}
+
+function renderMecGrid(ctx){
+  const grid=$(ctx+'-mec-grid');if(!grid)return;
+  const mecs=DB.mecanicos.filter(m=>m.estado==='Activo');
+  if(!mecs.length){grid.innerHTML='<span style="font-size:12px;color:var(--text3)">Sin mecánicos activos</span>';return;}
+  const sel=_mecSel[ctx]||new Set();
+  grid.innerHTML=mecs.map(m=>{
+    const activo=sel.has(m.id);
+    return`<button type="button" onclick="toggleMec('${ctx}','${m.id}')"
+      style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:20px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;font-weight:${activo?'700':'400'};
+      border:2px solid ${activo?'var(--accent)':'var(--border2)'};
+      background:${activo?'var(--accent)':'var(--bg)'};
+      color:${activo?'#fff':'var(--text)'};
+      transition:all .15s">
+      ${activo?'✓ ':''}${m.nombre}
+      ${m.especialidad?`<span style="font-size:10px;opacity:.7">${m.especialidad}</span>`:''}
+    </button>`;
+  }).join('');
 }
 
 function toggleMecPicker(ctx){
   const picker=$(ctx+'-mec-picker');if(!picker)return;
   if(picker.style.display==='none'){
-    // Build picker options
     renderMecPicker(ctx);
     picker.style.display='block';
-    // Close on outside click
     setTimeout(()=>{
       const close=e=>{if(!picker.contains(e.target)&&!$(ctx+'-mec-pills').contains(e.target)){picker.style.display='none';document.removeEventListener('click',close);}};
       document.addEventListener('click',close);
@@ -2509,6 +2530,7 @@ function toggleMec(ctx,id){
   if(!_mecSel[ctx])_mecSel[ctx]=new Set();
   if(_mecSel[ctx].has(id))_mecSel[ctx].delete(id);
   else _mecSel[ctx].add(id);
+  renderMecGrid(ctx);
   renderMecPicker(ctx);
   renderMecPills(ctx);
 }
