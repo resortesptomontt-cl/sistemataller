@@ -684,7 +684,13 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
   <div class="tabs">
     <button class="tab active" onclick="switchTab('inv','manual',this)">Agregar manual</button>
     <button class="tab" onclick="switchTab('inv','import',this)">Importar Excel</button>
-    <button class="tab" onclick="switchTab('inv','cats',this);renderCats_inv()">Categorías</button>
+    <button class="tab" onclick="
+      document.querySelectorAll('[id^=inv-tab-]').forEach(t=>t.style.display='none');
+      document.getElementById('inv-tab-cats').style.display='block';
+      this.closest('.tabs').querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+      this.classList.add('active');
+      renderCats_inv();
+    ">Categorías</button>
   </div>
   <div id="inv-tab-manual" class="card">
     <div class="card-title"><div class="card-title-left">Nuevo producto</div></div>
