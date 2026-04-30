@@ -5202,10 +5202,17 @@ let _invUpdatePendiente=[];
 
 function exportarInventarioExcel(){
   const cat=$('exp-inv-cat')?.value||'';
-  let lista=DB.inventario;
+  let lista=[...DB.inventario];
   if(cat)lista=lista.filter(p=>p.categoria===cat);
   if(!lista.length){toast('No hay productos para exportar','warn');return;}
-  const wb=XLSX.utils.book_new();
+  // Sort by code: products with code first (alphabetically), then without code at end
+  lista.sort((a,b)=>{
+    const ca=(a.cod||'').trim(), cb=(b.cod||'').trim();
+    if(ca&&!cb)return -1;
+    if(!ca&&cb)return 1;
+    if(ca&&cb)return ca.localeCompare(cb,undefined,{numeric:true,sensitivity:'base'});
+    return a.nombre.localeCompare(b.nombre);
+  });  const wb=XLSX.utils.book_new();
   const rows=lista.map(p=>({
     'ID (no editar)':p.id,
     'Nombre':p.nombre,
