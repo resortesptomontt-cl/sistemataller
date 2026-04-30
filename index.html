@@ -3651,33 +3651,31 @@ function eliminarCat(cat){
 
 function renombrarCat(idx){
   const cat=DB.categorias[idx];
-  const el=$(`cat-edit-${idx}`);
-  const row=$(`cat-row-${idx}`);
-  if(!el||!row)return;
-  // Show inline editor
+  if(cat===undefined)return;
+  const row=document.getElementById('cat-row-'+idx);
+  if(!row)return;
   row.innerHTML=`
     <div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border)">
       <span style="font-size:18px">📦</span>
-      <input id="cat-rename-input-${idx}" value="${cat}" style="flex:1;padding:7px 10px;border:2px solid var(--accent);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);outline:none"
+      <input id="cat-rename-input-${idx}" value="${cat.replace(/"/g,'&quot;')}"
+        style="flex:1;padding:7px 10px;border:2px solid var(--accent);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);outline:none"
         onkeydown="if(event.key==='Enter')confirmarRenombrar(${idx});if(event.key==='Escape')cancelarRenombrar(${idx})">
       <button class="btn btn-xs btn-primary" onclick="confirmarRenombrar(${idx})">✓ Guardar</button>
       <button class="btn btn-xs" onclick="cancelarRenombrar(${idx})">✕ Cancelar</button>
     </div>`;
-  setTimeout(()=>{
-    const inp=$(`cat-rename-input-${idx}`);
-    if(inp){inp.focus();inp.select();}
-  },50);
+  const inp=document.getElementById('cat-rename-input-'+idx);
+  if(inp){inp.focus();inp.select();}
 }
 
 function confirmarRenombrar(idx){
-  const nuevoNom=($(`cat-rename-input-${idx}`)?.value||'').trim();
+  const inp=document.getElementById('cat-rename-input-'+idx);
+  const nuevoNom=(inp?.value||'').trim();
   const viejoNom=DB.categorias[idx];
   if(!nuevoNom){toast('El nombre no puede estar vacío','err');return;}
   if(nuevoNom===viejoNom){cancelarRenombrar(idx);return;}
   if(DB.categorias.some((c,i)=>i!==idx&&c.toLowerCase()===nuevoNom.toLowerCase())){
     toast('Ya existe una categoría con ese nombre','err');return;
   }
-  // Rename in all products
   const actualizados=DB.inventario.filter(p=>p.categoria===viejoNom).length;
   DB.inventario.forEach(p=>{if(p.categoria===viejoNom)p.categoria=nuevoNom;});
   DB.categorias[idx]=nuevoNom;
