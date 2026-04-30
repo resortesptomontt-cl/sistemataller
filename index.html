@@ -909,12 +909,9 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
       <div class="g4">
         <div class="field"><label>Tipo documento</label>
           <select id="ot-doc-tipo" style="padding:8px 11px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);outline:none">
-            <option value="">— Sin documento —</option>
+            <option value="Sin Boleta/Factura">Sin Boleta / Factura</option>
             <option value="Boleta">Boleta</option>
-            <option value="Boleta electrónica">Boleta electrónica</option>
             <option value="Factura">Factura</option>
-            <option value="Factura electrónica">Factura electrónica</option>
-            <option value="Nota de crédito">Nota de crédito</option>
           </select>
         </div>
         <div class="field"><label>N° folio / documento</label><input id="ot-doc-folio" placeholder="Ej: 000123"></div>
@@ -1028,12 +1025,9 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
       <div class="g4">
         <div class="field"><label>Tipo documento</label>
           <select id="v-doc-tipo" style="padding:8px 11px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);outline:none">
-            <option value="">— Sin documento —</option>
+            <option value="Sin Boleta/Factura">Sin Boleta / Factura</option>
             <option value="Boleta">Boleta</option>
-            <option value="Boleta electrónica">Boleta electrónica</option>
             <option value="Factura">Factura</option>
-            <option value="Factura electrónica">Factura electrónica</option>
-            <option value="Nota de crédito">Nota de crédito</option>
           </select>
         </div>
         <div class="field"><label>N° folio / documento</label><input id="v-doc-folio" placeholder="Ej: 000123"></div>
@@ -2006,12 +2000,9 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
       <div class="g2" style="margin-bottom:12px">
         <div class="field"><label>Tipo de documento</label>
           <select id="doc-ot-tipo" style="padding:8px 11px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);outline:none;width:100%">
-            <option value="">— Sin documento —</option>
+            <option value="Sin Boleta/Factura">Sin Boleta / Factura</option>
             <option value="Boleta">Boleta</option>
-            <option value="Boleta electrónica">Boleta electrónica</option>
             <option value="Factura">Factura</option>
-            <option value="Factura electrónica">Factura electrónica</option>
-            <option value="Nota de crédito">Nota de crédito</option>
           </select>
         </div>
         <div class="field"><label>N° folio / documento</label><input id="doc-ot-folio" placeholder="Ej: 000123"></div>
@@ -3226,14 +3217,39 @@ function guardarCliente(){
   const nom=$('c-nom').value.trim();
   const rut=$('c-rut').value.trim();
   if(!nom){toast('El nombre es obligatorio','err');return;}
-  // If no RUT, check for duplicate name
-  if(!rut){
-    const dupe=DB.clientes.find(c=>c.nombre.toLowerCase()===nom.toLowerCase());
-    if(dupe){
-      const ingresarRut=confirm(`Ya existe un cliente llamado "${nom}". Para diferenciarlo debes ingresar el RUT. ¿Deseas ingresarlo ahora?`);
-      if(ingresarRut){$('c-rut').focus();return;}
+
+  // Check RUT duplicate (strongest signal)
+  if(rut){
+    const dupeRut=DB.clientes.find(c=>c.rut&&c.rut.replace(/[.\-]/g,'')===rut.replace(/[.\-]/g,''));
+    if(dupeRut){
+      const ir=confirm(`⚠️ Ya existe un cliente con el RUT ${rut}:\n\n"${dupeRut.nombre}"\n\n¿Deseas ver su ficha en vez de crear uno nuevo?`);
+      if(ir){limpiarC();verClienteRapido(dupeRut.id);}
+      return;
     }
   }
+
+  // Check name duplicate (normalized)
+  const nomNorm=nom.toLowerCase().replace(/\s+/g,' ').trim();
+  const dupeNom=DB.clientes.find(c=>c.nombre.toLowerCase().replace(/\s+/g,' ').trim()===nomNorm);
+  if(dupeNom){
+    // Same name found — warn but allow if RUT is different and provided
+    if(rut&&dupeNom.rut&&dupeNom.rut.replace(/[.\-]/g,'')!==rut.replace(/[.\-]/g,'')){
+      // Different RUT — probably different person with same name, allow with confirmation
+      if(!confirm(`ℹ️ Ya existe un cliente llamado "${nom}" con RUT ${dupeNom.rut}.\n\nEl nuevo cliente tiene RUT diferente (${rut}).\n¿Confirmas que es una persona distinta y deseas continuar?`))return;
+    } else if(!rut){
+      // No RUT — ask to differentiate
+      const ir=confirm(`⚠️ Ya existe un cliente llamado "${nom}".\n\n¿Deseas ver su ficha en vez de crear uno nuevo?\n\n(Si es una persona distinta, ingresa el RUT para diferenciarlos.)`);
+      if(ir){limpiarC();verClienteRapido(dupeNom.id);}
+      else $('c-rut').focus();
+      return;
+    } else {
+      // Same name, same or no RUT on existing — likely duplicate
+      const ir=confirm(`⚠️ Ya existe un cliente llamado "${nom}".\n\n¿Deseas ver su ficha en vez de crear uno nuevo?`);
+      if(ir){limpiarC();verClienteRapido(dupeNom.id);}
+      return;
+    }
+  }
+
   const tipo=$('c-tipo')?.value||'persona';
   const newId=uid();
   const cli={id:newId,nombre:nom,rut,tel:$('c-tel').value.trim(),
@@ -5317,6 +5333,24 @@ function abrirCliRapido(ctx){
   document.body.style.overflow='hidden';
   setTimeout(()=>$('qcli-nom')?.focus(),100);
 }
+function _asignarClienteExistenteCtx(c){
+  const ctx=_qCliCtx||'ot';
+  const txtMap={ot:'ot-cli-txt',v:'v-cli-txt',cot:'cot-cli-txt'};
+  const idMap={ot:'ot-cli-id',v:'v-cli-id',cot:'cot-cli-id'};
+  if(ctx==='edit-ot'){
+    if($('edit-ot-cli'))$('edit-ot-cli').value=c.nombre;
+    if($('edit-ot-cli-id'))$('edit-ot-cli-id').value=c.id;
+    const pill=$('edit-ot-cli-pill');
+    if(pill){pill.style.display='flex';$('edit-ot-cli-pill-nom').textContent=c.nombre+(c.rut?' · '+c.rut:'');}
+    const st=$('edit-ot-cli-status');if(st)st.innerHTML='<span style="color:var(--green)">✓ Cliente registrado</span>';
+    _editOTCliIdForVeh=c.id;
+  } else {
+    if($(txtMap[ctx]))$(txtMap[ctx]).value=c.nombre;
+    if($(idMap[ctx]))$(idMap[ctx]).value=c.id;
+  }
+  toast(`Cliente "${c.nombre}" asignado`);
+}
+
 function cerrarCliRapido(){
   $('modal-cli-rapido').style.display='none';
   document.body.style.overflow='';
@@ -5324,8 +5358,30 @@ function cerrarCliRapido(){
 function guardarCliRapido(){
   const nom=($('qcli-nom')?.value||'').trim();
   if(!nom){toast('El nombre es obligatorio','err');return;}
+  const rut=($('qcli-rut')?.value||'').trim();
+
+  // Check for duplicates before creating
+  if(rut){
+    const dupeRut=DB.clientes.find(c=>c.rut&&c.rut.replace(/[.\-]/g,'')===rut.replace(/[.\-]/g,''));
+    if(dupeRut){
+      if(!confirm(`⚠️ Ya existe "${dupeRut.nombre}" con el RUT ${rut}. ¿Usar ese cliente existente en vez de crear uno nuevo?`)){return;}
+      // Use existing client instead
+      cerrarCliRapido();
+      _asignarClienteExistenteCtx(dupeRut);
+      return;
+    }
+  }
+  const nomNorm=nom.toLowerCase().replace(/\s+/g,' ').trim();
+  const dupeNom=DB.clientes.find(c=>c.nombre.toLowerCase().replace(/\s+/g,' ').trim()===nomNorm);
+  if(dupeNom&&!rut){
+    if(!confirm(`⚠️ Ya existe un cliente llamado "${nom}". ¿Usar ese cliente existente en vez de crear uno nuevo?`)){return;}
+    cerrarCliRapido();
+    _asignarClienteExistenteCtx(dupeNom);
+    return;
+  }
+
   const newId=uid();
-  DB.clientes.push({id:newId,nombre:nom,rut:($('qcli-rut')?.value||'').trim(),
+  DB.clientes.push({id:newId,nombre:nom,rut,
     tel:($('qcli-tel')?.value||'').trim(),email:'',dir:'',
     tipo:'persona',origen:'Directo',obs:'',creado:new Date().toISOString()});
   save();
