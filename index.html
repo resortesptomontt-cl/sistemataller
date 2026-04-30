@@ -737,7 +737,11 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
           <option value="">Exportar: Todo</option>
         </select>
         <button class="btn btn-xs btn-teal" onclick="exportarInventarioExcel()">⬇ Exportar</button>
-        <label class="btn btn-xs" style="cursor:pointer" title="Importar cambios masivos desde Excel">
+        <label class="btn btn-xs" style="cursor:pointer;background:var(--green);color:#fff;border-color:var(--green)" title="Importar inventario completo — agrega nuevos y actualiza existentes">
+          ⬆ Importar completo
+          <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importarInventarioCompleto(this)">
+        </label>
+        <label class="btn btn-xs" style="cursor:pointer" title="Solo actualiza productos ya existentes por ID">
           ⬆ Actualizar masivo
           <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importarActualizacionInventario(this)">
         </label>
@@ -749,6 +753,14 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
       <div style="display:flex;gap:6px">
         <button class="btn btn-primary btn-sm" onclick="aplicarActualizacionInventario()">✓ Aplicar cambios</button>
         <button class="btn btn-sm" onclick="cancelarActualizacionInventario()">✕ Cancelar</button>
+      </div>
+    </div>
+    <div id="inv-full-import-preview" style="display:none;background:var(--teal-light);border:1px solid var(--teal);border-radius:var(--radius);padding:10px 14px;margin-bottom:10px">
+      <div style="font-size:12px;font-weight:600;margin-bottom:4px" id="inv-full-import-info"></div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:8px">Los productos nuevos se agregarán. Los existentes (por ID) se actualizarán. Esta acción no elimina productos.</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-primary btn-sm" onclick="aplicarImportacionCompleta()">✓ Confirmar importación</button>
+        <button class="btn btn-sm" onclick="cancelarImportacionCompleta()">✕ Cancelar</button>
       </div>
     </div>
     <div class="sbar">
@@ -5230,6 +5242,108 @@ function exportarInventarioExcel(){
   XLSX.utils.book_append_sheet(wb,ws,cat?cat.slice(0,31):'Inventario');
   XLSX.writeFile(wb,`Inventario${cat?'_'+cat:''}_${today()}.xlsx`);
   toast(`Excel exportado con ${lista.length} productos`);
+}
+
+let _invFullImportData=[];
+
+function importarInventarioCompleto(input){
+  const file=input.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'binary'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws);
+      if(!rows.length){toast('El archivo está vacío','err');return;}
+
+      let nuevos=0, actualizados=0;
+      _invFullImportData=[];
+
+      rows.forEach(row=>{
+        const id=String(row['ID (no editar)']||row['ID']||row['id']||'').trim();
+        const nombre=String(row['Nombre']||row['nombre']||'').trim();
+        if(!nombre)return; // skip empty rows
+
+        const existente=id?DB.inventario.find(p=>p.id===id):null;
+
+        if(existente){
+          // Update existing
+          _invFullImportData.push({
+            tipo:'actualizar',
+            id:existente.id,
+            nombre:String(row['Nombre']||existente.nombre).trim(),
+            cod:String(row['Código']||row['Codigo']||existente.cod||'').trim(),
+            categoria:String(row['Categoría']||row['Categoria']||existente.categoria||'').trim(),
+            unidad:String(row['Unidad']||existente.unidad||'und').trim(),
+            stock:parseFloat(row['Stock actual']??existente.stock)||0,
+            smin:parseFloat(row['Stock mínimo']??row['Stock minimo']??existente.smin)||0,
+            costo:parseFloat(row['Costo ($)']??row['Costo']??existente.costo)||0,
+            precio:parseFloat(row['Precio ($)']??row['Precio']??existente.precio)||0,
+          });
+          actualizados++;
+        } else {
+          // New product
+          _invFullImportData.push({
+            tipo:'nuevo',
+            id:uid(),
+            nombre,
+            cod:String(row['Código']||row['Codigo']||'').trim(),
+            categoria:String(row['Categoría']||row['Categoria']||'Sin categoría').trim(),
+            unidad:String(row['Unidad']||'und').trim(),
+            stock:parseFloat(row['Stock actual'])||0,
+            smin:parseFloat(row['Stock mínimo']||row['Stock minimo'])||0,
+            costo:parseFloat(row['Costo ($)']||row['Costo'])||0,
+            precio:parseFloat(row['Precio ($)']||row['Precio'])||0,
+          });
+          nuevos++;
+        }
+      });
+
+      const wrap=$('inv-full-import-preview');
+      const info=$('inv-full-import-info');
+      if(wrap)wrap.style.display='block';
+      if(info)info.innerHTML=`📦 Se procesaron <strong>${rows.length}</strong> filas del archivo:<br>
+        ✅ <strong>${actualizados}</strong> productos existentes serán actualizados<br>
+        ➕ <strong>${nuevos}</strong> productos nuevos serán agregados
+        ${nuevos>0?`<div style="margin-top:6px;font-size:10px;color:var(--text2)">
+          Primeros nuevos: ${_invFullImportData.filter(x=>x.tipo==='nuevo').slice(0,5).map(x=>x.nombre).join(', ')}${nuevos>5?'...':''}
+        </div>`:''}`;
+    }catch(err){toast('Error leyendo el archivo: '+err.message,'err');}
+    input.value='';
+  };
+  r.readAsBinaryString(file);
+}
+
+function aplicarImportacionCompleta(){
+  let agregados=0, actualizados=0;
+  // Collect new categories
+  const catNuevas=new Set();
+  _invFullImportData.forEach(item=>{
+    if(item.tipo==='actualizar'){
+      const prod=DB.inventario.find(p=>p.id===item.id);
+      if(!prod)return;
+      Object.assign(prod,{nombre:item.nombre,cod:item.cod,categoria:item.categoria,
+        unidad:item.unidad,stock:item.stock,smin:item.smin,costo:item.costo,precio:item.precio});
+      actualizados++;
+      if(item.categoria)catNuevas.add(item.categoria);
+    } else {
+      DB.inventario.push({id:item.id,nombre:item.nombre,cod:item.cod,
+        categoria:item.categoria,unidad:item.unidad,
+        stock:item.stock,smin:item.smin,costo:item.costo,precio:item.precio,
+        imgs:[],histStock:[],creado:new Date().toISOString()});
+      agregados++;
+      if(item.categoria)catNuevas.add(item.categoria);
+    }
+  });
+  // Add any new categories
+  catNuevas.forEach(c=>{if(c&&!DB.categorias.includes(c))DB.categorias.push(c);});
+  save();cancelarImportacionCompleta();llenarSelectsCat();renderInventario();
+  toast(`✅ ${agregados} productos agregados · ${actualizados} actualizados`);
+}
+
+function cancelarImportacionCompleta(){
+  _invFullImportData=[];
+  const wrap=$('inv-full-import-preview');if(wrap)wrap.style.display='none';
 }
 
 function importarActualizacionInventario(input){
