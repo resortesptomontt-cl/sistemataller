@@ -741,6 +741,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
           ⬆ Actualizar masivo
           <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importarActualizacionInventario(this)">
         </label>
+        <button class="btn btn-xs btn-red" onclick="eliminarInventarioCompleto()" title="Vaciar todo el inventario para volver a cargar desde cero">🗑 Vaciar</button>
       </div>
     </div>
     <div id="inv-update-preview" style="display:none;background:var(--amber-light);border:1px solid var(--amber);border-radius:var(--radius);padding:10px 14px;margin-bottom:10px">
@@ -3572,6 +3573,16 @@ function guardarProducto(){
   save();renderInventario();limpiarP();toast('Producto agregado');
 }
 function limpiarP(){['p-nom','p-cod','p-stock','p-smin','p-costo','p-precio'].forEach(i=>{if($(i))$(i).value='';});}
+function eliminarInventarioCompleto(){
+  const total=DB.inventario.length;
+  if(!total){toast('El inventario ya está vacío','warn');return;}
+  const conf=prompt(`⚠️ Esta acción eliminará los ${total} productos del inventario.\n\nNo se puede deshacer.\n\nEscribe CONFIRMAR para continuar:`);
+  if((conf||'').trim().toUpperCase()!=='CONFIRMAR'){toast('Operación cancelada','warn');return;}
+  DB.inventario=[];
+  save();renderInventario();llenarSelectsCat();
+  toast(`✅ Inventario vaciado — ${total} productos eliminados`,'info');
+}
+
 function eliminarProducto(id){
   if(!confirm('¿Eliminar este producto?'))return;
   DB.inventario=DB.inventario.filter(p=>p.id!==id);
