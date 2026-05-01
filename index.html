@@ -2275,7 +2275,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
 // STATE
 // ══════════════════════════════════════════════════
 const CATS_DEFAULT=['Lubricantes','Filtros','Frenos','Suspensión','Electricidad','Neumáticos','Mano de obra','Refrigeración','Transmisión','Otros'];
-let DB={clientes:[],vehiculos:[],inventario:[],mecanicos:[],cotizaciones:[],ordenes:[],ventas:[],gastos:[],categorias:[],creditos:[],anticipos:[],notas:[],recordatorios:[],reservas:[],creditosMec:[],vacaciones:[],proveedores:[],compras:[],comisionesAjustadas:{}};
+let DB={clientes:[],vehiculos:[],inventario:[],mecanicos:[],cotizaciones:[],ordenes:[],ventas:[],gastos:[],categorias:[],creditos:[],anticipos:[],notas:[],recordatorios:[],reservas:[],creditosMec:[],vacaciones:[],proveedores:[],compras:[],comisionesAjustadas:{},liquidaciones:[]};
 let lines={cot:[],ot:[],v:[]};
 let excPend=[],excCols={};
 
@@ -7478,7 +7478,6 @@ function calcAnticiposMes(mecId, mes, anio){
 // ─ Resumen por trabajador ─────────────────────────
 function renderResumenAnt(){
   const anioActual=new Date().getFullYear();
-  // Initialize year field if empty
   const anioEl=$('ant-filtro-anio');
   if(anioEl&&!anioEl.value)anioEl.value=anioActual;
   const mes=$('ant-filtro-mes')?.value||meses[new Date().getMonth()];
@@ -7487,7 +7486,7 @@ function renderResumenAnt(){
   const mecs=DB.mecanicos.filter(m=>m.estado==='Activo');
   if(!mecs.length){el.innerHTML='<div class="empty"><div class="empty-icon">👷</div>Sin mecánicos activos</div>';return;}
 
-  el.innerHTML=mecs.map(m=>{
+  el.innerHTML=mecs.map((m,mi)=>{
     const sueldo=m.sueldoBase||0;
     const {estimado,detalle}=calcComisionEstimadaMec(m.id,mes,anio);
     const comisionFinal=getComisionFinal(m.id,mes,anio);
@@ -7499,15 +7498,11 @@ function renderResumenAnt(){
     const aPagar=Math.max(0,bruto-descuentos);
     const otsMes=DB.ordenes.filter(o=>{
       const [oy,om]=((o.fechaIn||o.creado||'').slice(0,7)).split('-');
-      return meses[parseInt(om)-1]===mes && parseInt(oy)===anio &&
+      return meses[parseInt(om)-1]===mes&&parseInt(oy)===anio&&
         (o.mecanicoId===m.id||(o.mecanicoId||'').split(',').includes(m.id)||(o.mecanicos||[]).some(x=>x.id===m.id));
     });
-
-    // Credits for this worker
     const creditosActivos=(DB.creditosMec||[]).filter(c=>c.mecanicoId===m.id&&c.estado!=='Pagado');
     const fmtF=d=>{if(!d)return'—';const[y,mo,dd]=d.split('-');return`${dd}/${mo}/${y}`;};
-
-    // Build credit rows for this month
     const creditosMes=[];
     const anioN2=parseInt(anio);
     creditosActivos.forEach(c=>{
@@ -7518,135 +7513,287 @@ function renderResumenAnt(){
         }
       });
     });
-
-    // All pending credits (not just this month) for the "loans" table
     const todosCreditos=(DB.creditosMec||[]).filter(c=>c.mecanicoId===m.id);
 
+    // Check if already paid this month
+    const liqKey=`${m.id}_${mes}_${anio}`;
+    const liqReg=(DB.liquidaciones||[]).find(l=>l.key===liqKey);
+
     return`
-    <div class="card" style="margin-bottom:14px;border-left:3px solid ${aPagar>0?'var(--accent)':'var(--red)'}">
+    <div style="border:1px solid var(--border);border-left:4px solid ${aPagar>0?'var(--accent)':'var(--red)'};border-radius:var(--radius);margin-bottom:10px;overflow:hidden;box-shadow:var(--shadow)">
 
-      <!-- Header -->
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:14px">
-        <div>
-          <div style="font-size:15px;font-weight:700">👷 ${m.nombre}</div>
-          <div style="font-size:11px;color:var(--text2)">${m.rut?'RUT: '+m.rut+' · ':''}${m.especialidad||''} · ${otsMes.length} OT${otsMes.length!==1?'s':''} en ${mes} ${anio}</div>
+      <!-- CABECERA COLAPSABLE -->
+      <div onclick="toggleAntWorker('aw-${mi}')" style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;cursor:pointer;background:var(--surface2);gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:700">👷 ${m.nombre}
+            ${liqReg?`<span style="font-size:10px;font-weight:600;background:var(--green);color:#fff;padding:2px 8px;border-radius:10px;margin-left:8px">✓ Liquidado</span>`:''}
+          </div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">
+            ${m.rut?'RUT: '+m.rut+' · ':''}${m.especialidad||''} · ${otsMes.length} OT${otsMes.length!==1?'s':''} en ${mes} ${anio}
+          </div>
         </div>
-        <div style="text-align:right">
-          <div style="font-size:11px;color:var(--text2)">LÍQUIDO A PAGAR — ${mes} ${anio}</div>
-          <div style="font-size:26px;font-weight:700;color:${aPagar>0?'var(--green)':'var(--red)'};font-family:'DM Mono',monospace">${fmt(aPagar)}</div>
-        </div>
-      </div>
-
-      <!-- Desglose haberes -->
-      <div style="background:var(--surface2);border-radius:var(--radius);padding:10px 14px;margin-bottom:10px">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:8px">Desglose del mes</div>
-        <div style="display:flex;flex-direction:column;gap:5px;font-size:13px">
-
-          <!-- HABERES -->
-          <div style="display:flex;justify-content:space-between">
-            <span style="color:var(--text2)">Sueldo base</span>
-            <span style="font-family:'DM Mono',monospace;font-weight:600">${fmt(sueldo)}</span>
+        <div style="display:flex;align-items:center;gap:14px;flex-shrink:0">
+          <div style="text-align:right">
+            <div style="font-size:10px;color:var(--text2)">LÍQUIDO</div>
+            <div style="font-size:20px;font-weight:700;font-family:'DM Mono',monospace;color:${aPagar>0?'var(--green)':'var(--red)'}">${fmt(aPagar)}</div>
           </div>
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-            <div style="flex:1">
-              <div style="color:var(--green);margin-bottom:4px">+ Comisión OTs (5% por OT, dividida entre mecánicos)</div>
-              <!-- Detalle por OT -->
-              ${detalle.length?`<div style="font-size:10px;color:var(--text3);padding-left:10px;line-height:1.7">
-                ${detalle.map(d=>`${d.folio} · ${d.clienteNombre} · Total OT: ${fmt(d.total)}${d.nMec>1?` ÷ ${d.nMec} mecánicos`:''} = <strong style="color:var(--green)">${fmt(d.comision)}</strong>`).join('<br>')}
-              </div>`:'<div style="font-size:10px;color:var(--text3);padding-left:10px">Sin OTs este mes</div>'}
-              <div style="font-size:10px;color:var(--text2);margin-top:4px;padding-left:10px">
-                Estimado automático: <strong style="font-family:'DM Mono',monospace;color:var(--green)">${fmt(estimado)}</strong>
-                ${ajustada?`<span style="color:var(--amber);margin-left:6px">· Ajustado manualmente</span>`:''}
-              </div>
-              <!-- Campo de ajuste -->
-              <div style="display:flex;align-items:center;gap:6px;margin-top:6px;padding-left:10px;flex-wrap:wrap">
-                <span style="font-size:11px;color:var(--text2)">Comisión a liquidar:</span>
-                <input id="com-ajuste-${m.id}" type="number" value="${comisionFinal}" min="0"
-                  style="width:110px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-family:'DM Mono',monospace;background:var(--bg);color:var(--text);outline:none;${ajustada?'border-color:var(--amber)':''}">
-                <button class="btn btn-xs btn-green" onclick="guardarComisionAjustada('${m.id}','${mes}',${anio})">✓ Guardar</button>
-                ${ajustada?`<button class="btn btn-xs" onclick="resetComisionAjustada('${m.id}','${mes}',${anio})" title="Restablecer al valor calculado">↩ Restablecer</button>`:''}
-              </div>
-            </div>
-            <span style="font-family:'DM Mono',monospace;font-weight:600;color:${ajustada?'var(--amber)':'var(--green)'};white-space:nowrap">+${fmt(comisionFinal)}</span>
-          </div>
-          <div style="border-top:1px solid var(--border);margin:2px 0;padding-top:5px;display:flex;justify-content:space-between;font-weight:700">
-            <span>= Sueldo bruto</span>
-            <span style="font-family:'DM Mono',monospace">${fmt(bruto)}</span>
-          </div>
-
-          <!-- ANTICIPOS -->
-          ${anticipos>0?`<div style="display:flex;justify-content:space-between">
-            <span style="color:var(--amber)">− Anticipos del mes</span>
-            <span style="font-family:'DM Mono',monospace;font-weight:600;color:var(--amber)">-${fmt(anticipos)}</span>
-          </div>
-          <div style="border-top:1px dashed var(--border);margin:2px 0;padding-top:5px;display:flex;justify-content:space-between;font-weight:600;color:var(--text2);font-size:12px">
-            <span>= Saldo disponible</span>
-            <span style="font-family:'DM Mono',monospace">${fmt(bruto-anticipos)}</span>
-          </div>`:''}
-
-          <!-- CUOTAS CRÉDITO — descuento directo del sueldo -->
-          ${creditosMes.length?`<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;margin-bottom:2px">Descuentos por crédito / préstamo:</div>`:''}
-          ${creditosMes.map(cr=>`
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;background:${cr.cuota.pagado?'var(--green-light)':'var(--red-light)'};border-radius:var(--radius);padding:6px 10px;margin-bottom:2px">
-            <div style="flex:1">
-              <span style="color:${cr.cuota.pagado?'var(--green)':'var(--red)'};font-weight:600;font-size:12px">
-                − ${cr.desc}
-              </span>
-              ${cr.cuota.fecha?`<span style="font-size:10px;color:var(--text3);margin-left:6px">📅 ${fmtF(cr.cuota.fecha)}</span>`:''}
-              <div style="font-size:10px;color:var(--text3);margin-top:2px">
-                Cuota ${cr.pagadas+1}/${cr.ncuotas} · Saldo restante: ${fmt(cr.saldo)}
-              </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-              <span style="font-family:'DM Mono',monospace;font-weight:700;color:${cr.cuota.pagado?'var(--green)':'var(--red)'}${cr.cuota.pagado?';text-decoration:line-through':''}">-${fmt(cr.cuota.monto)}</span>
-              ${cr.cuota.pagado
-                ?`<span class="badge b-green" style="font-size:9px">✓ Pagada</span>`
-                :`<button class="btn btn-xs btn-green" style="padding:2px 8px;font-size:10px" onclick="pagarCuotaCredito('${cr.creditoId}',${cr.cuotaIdx})">✓ Marcar pagada</button>`}
-            </div>
-          </div>`).join('')}
-
-          <!-- LÍQUIDO FINAL -->
-          <div style="border-top:2px solid var(--border);margin:4px 0;padding-top:6px;display:flex;justify-content:space-between;font-weight:700;font-size:14px">
-            <span style="color:${aPagar>0?'var(--green)':'var(--red)'}">= LÍQUIDO A PAGAR</span>
-            <span style="font-family:'DM Mono',monospace;color:${aPagar>0?'var(--green)':'var(--red)'}">${fmt(aPagar)}</span>
-          </div>
-
+          <span style="font-size:18px;color:var(--text3);transition:transform .2s" id="aw-arr-${mi}">▾</span>
         </div>
       </div>
 
-      <!-- Tabla créditos del trabajador -->
-      ${todosCreditos.length?`
-      <div style="margin-bottom:10px">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:6px">💳 Créditos / Préstamos</div>
-        <div class="tw"><table>
-          <thead><tr><th>Descripción</th><th>Total</th><th>Saldo</th><th>Cuotas</th><th>Próximo desc.</th><th>Estado</th></tr></thead>
-          <tbody>
-            ${todosCreditos.map(c=>{
+      <!-- DETALLE EXPANDIBLE -->
+      <div id="aw-${mi}" style="display:none;padding:14px 16px">
+
+        <!-- DESGLOSE -->
+        <div style="background:var(--surface2);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:8px">Desglose del mes</div>
+          <div style="display:flex;flex-direction:column;gap:5px;font-size:13px">
+            <div style="display:flex;justify-content:space-between">
+              <span style="color:var(--text2)">Sueldo base</span>
+              <span style="font-family:'DM Mono',monospace;font-weight:600">${fmt(sueldo)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+              <div style="flex:1">
+                <div style="color:var(--green);margin-bottom:4px">+ Comisión OTs (5% por OT, dividida entre mecánicos)</div>
+                ${detalle.length?`<div style="font-size:10px;color:var(--text3);padding-left:10px;line-height:1.7">
+                  ${detalle.map(d=>`${d.folio} · ${d.clienteNombre} · ${fmt(d.total)}${d.nMec>1?` ÷ ${d.nMec}`:''} = <strong style="color:var(--green)">${fmt(d.comision)}</strong>`).join('<br>')}
+                </div>`:'<div style="font-size:10px;color:var(--text3);padding-left:10px">Sin OTs este mes</div>'}
+                <div style="font-size:10px;color:var(--text2);margin-top:4px;padding-left:10px">
+                  Estimado automático: <strong style="font-family:'DM Mono',monospace;color:var(--green)">${fmt(estimado)}</strong>
+                  ${ajustada?`<span style="color:var(--amber);margin-left:6px">· Ajustado</span>`:''}
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;margin-top:6px;padding-left:10px;flex-wrap:wrap">
+                  <span style="font-size:11px;color:var(--text2)">Comisión a liquidar:</span>
+                  <input id="com-ajuste-${m.id}" type="number" value="${comisionFinal}" min="0"
+                    style="width:110px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-family:'DM Mono',monospace;background:var(--bg);color:var(--text);outline:none;${ajustada?'border-color:var(--amber)':''}">
+                  <button class="btn btn-xs btn-green" onclick="guardarComisionAjustada('${m.id}','${mes}',${anio})">✓ Guardar</button>
+                  ${ajustada?`<button class="btn btn-xs" onclick="resetComisionAjustada('${m.id}','${mes}',${anio})">↩</button>`:''}
+                </div>
+              </div>
+              <span style="font-family:'DM Mono',monospace;font-weight:600;color:${ajustada?'var(--amber)':'var(--green)'};white-space:nowrap">+${fmt(comisionFinal)}</span>
+            </div>
+            <div style="border-top:1px solid var(--border);margin:2px 0;padding-top:5px;display:flex;justify-content:space-between;font-weight:700">
+              <span>= Sueldo bruto</span><span style="font-family:'DM Mono',monospace">${fmt(bruto)}</span>
+            </div>
+            ${anticipos>0?`
+            <div style="display:flex;justify-content:space-between">
+              <span style="color:var(--amber)">− Anticipos del mes</span>
+              <span style="font-family:'DM Mono',monospace;font-weight:600;color:var(--amber)">-${fmt(anticipos)}</span>
+            </div>
+            <div style="border-top:1px dashed var(--border);margin:2px 0;padding-top:5px;display:flex;justify-content:space-between;font-weight:600;color:var(--text2);font-size:12px">
+              <span>= Saldo disponible</span><span style="font-family:'DM Mono',monospace">${fmt(bruto-anticipos)}</span>
+            </div>`:''}
+            ${creditosMes.length?`<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-top:2px">Descuentos por crédito:</div>`:''}
+            ${creditosMes.map(cr=>`
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;background:${cr.cuota.pagado?'var(--green-light)':'var(--red-light)'};border-radius:var(--radius);padding:6px 10px;margin-bottom:2px">
+              <div style="flex:1">
+                <span style="color:${cr.cuota.pagado?'var(--green)':'var(--red)'};font-weight:600;font-size:12px">− ${cr.desc}</span>
+                <div style="font-size:10px;color:var(--text3);margin-top:2px">Cuota ${cr.pagadas+1}/${cr.ncuotas} · Saldo: ${fmt(cr.saldo)}</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="font-family:'DM Mono',monospace;font-weight:700;color:${cr.cuota.pagado?'var(--green)':'var(--red)'}">-${fmt(cr.cuota.monto)}</span>
+                ${cr.cuota.pagado?`<span class="badge b-green" style="font-size:9px">✓</span>`
+                :`<button class="btn btn-xs btn-green" style="padding:2px 8px;font-size:10px" onclick="pagarCuotaCredito('${cr.creditoId}',${cr.cuotaIdx})">✓ Pagar</button>`}
+              </div>
+            </div>`).join('')}
+            <div style="border-top:2px solid var(--border);margin:4px 0;padding-top:6px;display:flex;justify-content:space-between;font-weight:700;font-size:14px">
+              <span style="color:${aPagar>0?'var(--green)':'var(--red)'}">= LÍQUIDO A PAGAR</span>
+              <span style="font-family:'DM Mono',monospace;color:${aPagar>0?'var(--green)':'var(--red)'}">${fmt(aPagar)}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- CRÉDITOS -->
+        ${todosCreditos.length?`
+        <div style="margin-bottom:12px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:6px">💳 Créditos / Préstamos</div>
+          <div class="tw"><table>
+            <thead><tr><th>Descripción</th><th>Total</th><th>Saldo</th><th>Cuotas</th><th>Estado</th></tr></thead>
+            <tbody>${todosCreditos.map(c=>{
               const prox=c.cuotasPlan.find(cu=>!cu.pagado);
               const pagadas=c.cuotasPlan.filter(cu=>cu.pagado).length;
               return`<tr>
                 <td style="font-weight:500">${c.desc}</td>
                 <td style="font-family:'DM Mono',monospace">${fmt(c.monto)}</td>
-                <td style="font-family:'DM Mono',monospace;font-weight:700;color:${c.saldo>0?'var(--red)':'var(--green)'}">${fmt(c.saldo)}</td>
-                <td style="font-size:11px">${pagadas}/${c.ncuotas} ${prox?`· ${fmt(prox.monto)}/mes`:''}</td>
-                <td style="font-size:11px">${prox?prox.mes+' '+prox.anio+(prox.fecha?' · '+fmtF(prox.fecha):''):'—'}</td>
+                <td style="font-family:'DM Mono',monospace;color:${c.saldo>0?'var(--red)':'var(--green)'};font-weight:700">${fmt(c.saldo)}</td>
+                <td style="font-size:11px">${pagadas}/${c.ncuotas}${prox?` · ${fmt(prox.monto)}/mes`:''}</td>
                 <td><span class="badge ${c.estado==='Pagado'?'b-green':'b-red'}">${c.estado==='Pagado'?'✓ Saldado':'Activo'}</span></td>
               </tr>`;
-            }).join('')}
-          </tbody>
-        </table></div>
-      </div>`:''}
+            }).join('')}</tbody>
+          </table></div>
+        </div>`:''}
 
-      <!-- Acciones -->
-      <div style="border-top:1px solid var(--border);padding-top:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
-        <span style="font-size:11px;color:var(--text2)">Bruto: <strong style="font-family:'DM Mono',monospace">${fmt(bruto)}</strong> − Descuentos: <strong style="font-family:'DM Mono',monospace">${fmt(descuentos)}</strong> = <strong style="color:${aPagar>0?'var(--green)':'var(--red)'};font-family:'DM Mono',monospace">${fmt(aPagar)}</strong></span>
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-xs btn-teal" onclick="switchTab('ant','creditos',document.querySelectorAll('.tab')[2])">+ Crédito</button>
-          <button class="btn btn-xs" onclick="switchTab('ant','nuevo',document.querySelector('.tab'));$('ant-mec').value='${m.id}'">+ Anticipo</button>
+        <!-- REGISTRO LIQUIDACIÓN ENTREGADA -->
+        <div style="background:${liqReg?'var(--green-light)':'var(--surface2)'};border:1px solid ${liqReg?'var(--green)':'var(--border)'};border-radius:var(--radius);padding:12px 14px;margin-bottom:10px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:8px">
+            ${liqReg?'✅ Liquidación entregada':'💵 Registrar entrega de liquidación'}
+          </div>
+          ${liqReg?`
+          <div style="font-size:12px;color:var(--text2);margin-bottom:8px">
+            Entregado el <strong>${fmtF(liqReg.fecha)}</strong> · Monto: <strong style="font-family:'DM Mono',monospace;color:var(--green)">${fmt(liqReg.monto)}</strong>
+            ${liqReg.obs?`<br>📋 ${liqReg.obs}`:''}
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-xs btn-orange" onclick="imprimirLiquidacion('${m.id}','${mes}',${anio})">🖨 Imprimir comprobante</button>
+            <button class="btn btn-xs btn-red" onclick="anularLiquidacion('${m.id}','${mes}',${anio})">✕ Anular</button>
+          </div>`:`
+          <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:8px">
+            <div class="field" style="margin:0"><label>Fecha entrega</label><input id="liq-fecha-${m.id}" type="date" value="${today()}" style="padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;background:var(--bg);color:var(--text);outline:none"></div>
+            <div class="field" style="margin:0;flex:1;min-width:160px"><label>Comentario / observación (opcional)</label><input id="liq-obs-${m.id}" placeholder="Ej: Incluye pago luz $15.000" style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;background:var(--bg);color:var(--text);outline:none"></div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-primary btn-sm" onclick="registrarLiquidacion('${m.id}','${mes}',${anio},${aPagar})">✅ Marcar como entregada — ${fmt(aPagar)}</button>
+            <button class="btn btn-xs btn-orange" onclick="imprimirLiquidacion('${m.id}','${mes}',${anio})">🖨 Imprimir sin marcar</button>
+          </div>`}
         </div>
+
+        <!-- ACCIONES RÁPIDAS -->
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-xs btn-teal" onclick="switchTab('ant','creditos',document.querySelectorAll('#sec-anticipos .tab')[2])">+ Crédito</button>
+          <button class="btn btn-xs" onclick="switchTab('ant','nuevo',document.querySelectorAll('#sec-anticipos .tab')[0]);$('ant-mec').value='${m.id}'">+ Anticipo</button>
+        </div>
+
       </div>
     </div>`;
   }).join('');
+}
+
+function toggleAntWorker(id){
+  const el=document.getElementById(id);
+  if(!el)return;
+  const idx=id.replace('aw-','');
+  const arr=document.getElementById('aw-arr-'+idx);
+  const open=el.style.display==='none';
+  el.style.display=open?'block':'none';
+  if(arr)arr.style.transform=open?'rotate(180deg)':'';
+}
+
+// ── Liquidaciones mensuales ──────────────────────
+function registrarLiquidacion(mecId, mes, anio, monto){
+  if(!DB.liquidaciones)DB.liquidaciones=[];
+  const key=`${mecId}_${mes}_${anio}`;
+  const fecha=$(`liq-fecha-${mecId}`)?.value||today();
+  const obs=($(`liq-obs-${mecId}`)?.value||'').trim();
+  DB.liquidaciones=DB.liquidaciones.filter(l=>l.key!==key);
+  DB.liquidaciones.push({key,mecanicoId:mecId,mes,anio,monto,fecha,obs,creado:new Date().toISOString()});
+  save();renderResumenAnt();
+  toast('✅ Liquidación registrada como entregada');
+  setTimeout(()=>imprimirLiquidacion(mecId,mes,anio),300);
+}
+
+function anularLiquidacion(mecId, mes, anio){
+  if(!confirm('¿Anular el registro de liquidación entregada?'))return;
+  if(!DB.liquidaciones)return;
+  const key=`${mecId}_${mes}_${anio}`;
+  DB.liquidaciones=DB.liquidaciones.filter(l=>l.key!==key);
+  save();renderResumenAnt();toast('Liquidación anulada');
+}
+
+function imprimirLiquidacion(mecId, mes, anio){
+  const m=DB.mecanicos.find(x=>x.id===mecId);if(!m)return;
+  const cfg=CFG||{};
+  const anioN=parseInt(anio);
+  const sueldo=m.sueldoBase||0;
+  const {estimado,detalle}=calcComisionEstimadaMec(mecId,mes,anio);
+  const comisionFinal=getComisionFinal(mecId,mes,anio);
+  const anticipos=calcAnticiposMes(mecId,mes,anio);
+  const cuotaCredito=calcCuotaCreditoMec(mecId,mes,anio);
+  const bruto=sueldo+comisionFinal;
+  const descuentos=anticipos+cuotaCredito;
+  const aPagar=Math.max(0,bruto-descuentos);
+  const key=`${mecId}_${mes}_${anio}`;
+  const liqReg=(DB.liquidaciones||[]).find(l=>l.key===key);
+  const anticiposMes=(DB.anticipos||[]).filter(a=>a.mecanicoId===mecId&&a.mes===mes&&a.anio===anioN);
+  const fmtF=d=>{if(!d)return'—';const[y,mo,dd]=d.split('-');return`${dd}/${mo}/${y}`;};
+
+  const cuerpo=`<style>
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    body,div,td,th,p,span{font-family:Arial,sans-serif;font-size:12px;color:#111}
+    .doc{max-width:740px;margin:0 auto;padding:14px}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:10px;border-bottom:2.5px solid #1a3a5c;margin-bottom:14px}
+    .co-name{font-size:15px;font-weight:700;color:#1a3a5c}
+    .co-info{font-size:10px;color:#666;margin-top:2px}
+    .doc-title{text-align:right}
+    .doc-title .tipo{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#888}
+    .doc-title .nom{font-size:15px;font-weight:700;color:#b85c1a}
+    .worker-box{background:#f0f4f8;border-radius:6px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+    .row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #eee;font-size:12px}
+    .row.total{font-weight:700;font-size:14px;border-top:2px solid #1a3a5c;border-bottom:none;padding-top:8px;margin-top:4px}
+    .row.sub{font-size:11px;color:#888;padding-left:14px}
+    .mono{font-family:monospace}
+    .green{color:#0d9488} .red{color:#dc2626} .amber{color:#d97706}
+    .firma-section{margin-top:24px;display:grid;grid-template-columns:1fr 1fr;gap:40px}
+    .firma-block .lbl{font-size:10px;color:#888;margin-bottom:4px}
+    .firma-line{border-top:1px solid #333;padding-top:6px;font-size:11px;color:#555}
+    .obs-box{background:#fff8e1;border:1px solid #e0c060;border-radius:4px;padding:7px 10px;font-size:10px;color:#7a5f10;margin:10px 0}
+    .footer{margin-top:12px;padding-top:8px;border-top:1px solid #ddd;font-size:9px;color:#aaa;text-align:center}
+  </style>
+  <div class="doc">
+    <div class="header">
+      <div>
+        ${cfg.logo?`<img src="${cfg.logo}" style="height:36px;max-width:80px;object-fit:contain;display:block;margin-bottom:4px">`:''}
+        <div class="co-name">${cfg.nombre||'Taller Mecánico'}</div>
+        ${cfg.rut?`<div class="co-info">RUT: ${cfg.rut}</div>`:''}
+        ${cfg.dir?`<div class="co-info">${cfg.dir}${cfg.ciudad?', '+cfg.ciudad:''}</div>`:''}
+      </div>
+      <div class="doc-title">
+        <div class="tipo">Comprobante de Liquidación</div>
+        <div class="nom">${mes} ${anio}</div>
+        <div style="font-size:10px;color:#888;margin-top:4px">Emitido: ${fmtF(today())}</div>
+      </div>
+    </div>
+
+    <div class="worker-box">
+      <div>
+        <div style="font-size:15px;font-weight:700">👷 ${m.nombre}</div>
+        ${m.rut?`<div style="font-size:11px;color:#666;margin-top:2px">RUT: ${m.rut}</div>`:''}
+        ${m.especialidad?`<div style="font-size:11px;color:#666">${m.especialidad}</div>`:''}
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:10px;color:#888">LÍQUIDO A PAGAR</div>
+        <div style="font-size:24px;font-weight:700;font-family:monospace;color:${aPagar>0?'#0d9488':'#dc2626'}">${fmt(aPagar)}</div>
+      </div>
+    </div>
+
+    <div class="row"><span>Sueldo base</span><span class="mono">${fmt(sueldo)}</span></div>
+    <div class="row"><span class="green">+ Comisión ${mes} ${anio}</span><span class="mono green">+${fmt(comisionFinal)}</span></div>
+    ${detalle.length?detalle.map(d=>`<div class="row sub"><span>${d.folio} · ${d.clienteNombre}${d.nMec>1?` ÷${d.nMec}`:''}</span><span class="mono">${fmt(d.comision)}</span></div>`).join(''):'<div class="row sub"><span>Sin OTs este mes</span><span>—</span></div>'}
+    <div class="row" style="font-weight:600"><span>= Sueldo bruto</span><span class="mono">${fmt(bruto)}</span></div>
+    ${anticiposMes.length?`
+    <div class="row amber"><span>− Anticipos del mes</span><span class="mono amber">-${fmt(anticipos)}</span></div>
+    ${anticiposMes.map(a=>`<div class="row sub"><span>${fmtF(a.fecha)} · ${a.desc||'Anticipo'}</span><span class="mono">-${fmt(a.monto)}</span></div>`).join('')}
+    <div class="row sub" style="font-weight:600"><span>= Saldo disponible</span><span class="mono">${fmt(bruto-anticipos)}</span></div>`:''}
+    ${cuotaCredito>0?`<div class="row red"><span>− Cuota crédito/préstamo</span><span class="mono red">-${fmt(cuotaCredito)}</span></div>`:''}
+    <div class="row total" style="color:${aPagar>0?'#0d9488':'#dc2626'}">
+      <span>= LÍQUIDO A PAGAR</span><span class="mono">${fmt(aPagar)}</span>
+    </div>
+    ${liqReg?.obs?`<div class="obs-box">📋 ${liqReg.obs}</div>`:''}
+
+    <div class="firma-section">
+      <div class="firma-block">
+        <div class="lbl">Firma del trabajador / Conforme</div>
+        <div style="height:32px"></div>
+        <div class="firma-line">${m.nombre}<br>${m.rut?'RUT: '+m.rut:''}</div>
+      </div>
+      <div class="firma-block">
+        <div class="lbl">Firma empleador / Administrador</div>
+        <div style="height:32px"></div>
+        <div class="firma-line">${cfg.nombre||'Taller Mecánico'}<br>${cfg.rut?'RUT: '+cfg.rut:''}</div>
+      </div>
+    </div>
+    <div class="footer">${cfg.nombre||'Taller Mecánico'} · Liquidación ${mes} ${anio} · Emitido el ${fmtF(today())}</div>
+  </div>`;
+
+  // 2 copias
+  const win=window.open('','_blank','width=860,height=1100');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Liquidación ${m.nombre} - ${mes} ${anio}</title>
+  <style>@page{margin:10mm;size:auto}.copia-sep{page-break-after:always;break-after:page}.copia-lbl{font-size:9px;color:#aaa;text-align:right;font-family:Arial;padding:2px 0}</style>
+  </head><body>
+  <div class="copia-sep"><div class="copia-lbl">Copia 1 de 2 — Empleador</div>${cuerpo}</div>
+  <div><div class="copia-lbl">Copia 2 de 2 — Trabajador</div>${cuerpo}</div>
+  </body></html>`);
+  win.document.close();win.focus();
+  setTimeout(()=>win.print(),500);
 }
 
 // ─ Guardar anticipo ───────────────────────────────
