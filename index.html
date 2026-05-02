@@ -3140,7 +3140,7 @@ function renderDashboard(){
       if(nMec>1)mecMap[key].enGrupo++;
     });
   });
-  const mecList=Object.entries(mecMap).sort((a,b)=>b[1].ots-a[1].ots||b[1].total-a[1].total);
+  const mecList=Object.entries(mecMap).sort((a,b)=>b[1].total-a[1].total||b[1].ots-a[1].ots);
   const mEl=$('dash-mecanicos');
   if(mEl){
     if(!mecList.length){mEl.innerHTML='<div class="empty" style="padding:12px"><div class="empty-icon">👷</div>Sin datos este mes</div>';}
@@ -8794,7 +8794,7 @@ async function fbInit(){
       projectId:"sistema-resortes",
       storageBucket:"sistema-resortes.firebasestorage.app",
       messagingSenderId:"284825132380",
-      appId:"1:284825132380:web:f4ef5fe10874dd282cf599"
+      appId:"1:284825132380:web:202e568298cd4dc82cf599"
     };
 
     // Initialize only once
