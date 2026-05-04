@@ -1903,6 +1903,37 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
   </div>
 </div>
 
+<!-- MODAL EDITAR VEHÍCULO -->
+<div id="modal-edit-veh" class="modal-overlay" style="display:none" onclick="if(event.target===this)cerrarEditVehiculo()">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-hdr">
+      <h3>🚗 Editar vehículo — <span id="edit-veh-titulo"></span></h3>
+      <button class="btn btn-ghost btn-sm" onclick="cerrarEditVehiculo()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="g2" style="margin-bottom:10px">
+        <div class="field"><label>Patente *</label><input id="ev-pat" placeholder="ABCD12" style="text-transform:uppercase"></div>
+        <div class="field"><label>Combustible</label>
+          <select id="ev-comb" style="padding:8px 11px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);outline:none;width:100%">
+            <option>Diésel</option><option>Gasolina</option><option>Eléctrico</option><option>Híbrido</option><option>Gas</option>
+          </select>
+        </div>
+        <div class="field"><label>Marca</label><input id="ev-marca" placeholder="Toyota"></div>
+        <div class="field"><label>Modelo</label><input id="ev-modelo" placeholder="Hilux"></div>
+        <div class="field"><label>Año</label><input id="ev-anio" placeholder="2020" type="number"></div>
+        <div class="field"><label>Color</label><input id="ev-color" placeholder="Blanco"></div>
+        <div class="field"><label>Km actual</label><input id="ev-km" type="number" placeholder="0" min="0"></div>
+        <div class="field"><label>VIN / N° motor</label><input id="ev-vin" placeholder="Opcional"></div>
+        <div class="field" style="grid-column:1/-1"><label>Observaciones</label><input id="ev-obs" placeholder="Notas del vehículo..."></div>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn" onclick="cerrarEditVehiculo()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarEditVehiculo()">✓ Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL AGREGAR VEHÍCULO RÁPIDO (desde clientes) -->
 <div id="modal-vh-rapido" class="modal-overlay" style="display:none" onclick="if(event.target===this)cerrarVHRapido()">
   <div class="modal" style="max-width:520px">
@@ -2124,7 +2155,17 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0}
         <div class="field"><label>P. Unit. ($)</label><input id="edit-ot-pu" type="number" placeholder="0"></div>
       </div>
       <button class="btn btn-sm btn-orange" onclick="addItemEditOT()">+ Agregar ítem</button>
-      <div class="tbar tbar-blue" style="margin-top:12px"><div><div class="lbl">Total orden</div></div><div class="amt" id="edit-ot-total">$0</div></div>
+
+      <!-- Descuento global -->
+      <div style="display:flex;align-items:center;gap:10px;margin-top:10px;padding:8px 12px;background:var(--surface2);border-radius:var(--radius)">
+        <span style="font-size:12px;color:var(--text2);flex:1">🏷️ Descuento sobre el total ($)</span>
+        <input id="edit-ot-descuento" type="number" min="0" placeholder="0"
+          style="width:120px;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:'DM Mono',monospace;background:var(--bg);color:var(--text);outline:none;text-align:right"
+          oninput="renderEditOTItems()">
+        <span style="font-size:12px;color:var(--text2)">pesos</span>
+      </div>
+
+      <div class="tbar tbar-blue" style="margin-top:8px"><div><div class="lbl">Total orden</div></div><div class="amt" id="edit-ot-total">$0</div></div>
 
       <!-- Fotos de evidencia -->
       <hr style="margin:14px 0">
@@ -3496,6 +3537,57 @@ function limpiarVH(){
   ['vh-pat','vh-marca','vh-mod','vh-anio','vh-col','vh-km','vh-vin','vh-obs'].forEach(i=>{if($(i))$(i).value='';});
   _vhImgs=[];renderVHImgsPreview();
 }
+
+let _editVehId=null;
+function abrirEditVehiculo(id){
+  const v=DB.vehiculos.find(x=>x.id===id);if(!v)return;
+  _editVehId=id;
+  $('edit-veh-titulo').textContent=v.patente||'Vehículo';
+  $('ev-pat').value=v.patente||'';
+  $('ev-comb').value=v.combustible||'Diésel';
+  $('ev-marca').value=v.marca||'';
+  $('ev-modelo').value=v.modelo||'';
+  $('ev-anio').value=v.anio||'';
+  $('ev-color').value=v.color||'';
+  $('ev-km').value=v.km||0;
+  $('ev-vin').value=v.vin||'';
+  $('ev-obs').value=v.obs||'';
+  $('modal-edit-veh').style.display='flex';
+  document.body.style.overflow='hidden';
+}
+function cerrarEditVehiculo(){
+  $('modal-edit-veh').style.display='none';
+  document.body.style.overflow='';
+  _editVehId=null;
+}
+function guardarEditVehiculo(){
+  const v=DB.vehiculos.find(x=>x.id===_editVehId);if(!v){cerrarEditVehiculo();return;}
+  const pat=($('ev-pat')?.value||'').trim().toUpperCase();
+  if(!pat){toast('La patente es obligatoria','err');return;}
+  // Check patente duplicate (excluding self)
+  const dupe=DB.vehiculos.find(x=>x.id!==_editVehId&&x.patente===pat);
+  if(dupe){toast('Ya existe otro vehículo con esa patente','err');return;}
+  v.patente=pat;
+  v.combustible=$('ev-comb').value;
+  v.marca=($('ev-marca')?.value||'').trim();
+  v.modelo=($('ev-modelo')?.value||'').trim();
+  v.anio=($('ev-anio')?.value||'').trim();
+  v.color=($('ev-color')?.value||'').trim();
+  const km=parseFloat($('ev-km')?.value)||0;
+  if(km>0&&km!==v.km){
+    if(!v.histKm)v.histKm=[];
+    v.histKm.push({km,fecha:today(),creado:new Date().toISOString()});
+    v.km=km;
+  }
+  v.vin=($('ev-vin')?.value||'').trim();
+  v.obs=($('ev-obs')?.value||'').trim();
+  v.modificado=new Date().toISOString();
+  // Update clienteNombre in OTs referencing this vehicle
+  DB.ordenes.forEach(o=>{if(o.vehiculoId===v.id){o.patente=v.patente;o.marca=v.marca;o.modelo=v.modelo;}});
+  save();renderVehiculos();cerrarEditVehiculo();
+  toast(`Vehículo ${pat} actualizado ✓`);
+}
+
 function eliminarVehiculo(id){
   if(!confirm('¿Eliminar este vehículo?'))return;
   DB.vehiculos=DB.vehiculos.filter(v=>v.id!==id);
@@ -3546,6 +3638,7 @@ function renderVehiculos(){
         ${renderHistVehiculo(v.id)}
         <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:10px">
           ${cli?.tel?`<button class="btn btn-xs btn-green" onclick="event.stopPropagation();abrirModalWA('${cli.tel}','Hola ${v.clienteNombre}, te contactamos desde ${CFG.nombre||'el taller'}.')">💬 WhatsApp</button>`:''}
+          <button class="btn btn-xs btn-teal" onclick="event.stopPropagation();abrirEditVehiculo('${v.id}')">✏ Editar</button>
           <button class="btn btn-xs btn-red" onclick="event.stopPropagation();eliminarVehiculo('${v.id}')">Eliminar vehículo</button>
         </div>
       </div>
@@ -3841,7 +3934,9 @@ function guardarCot(){
   const cid=$('cot-cli-id').value||null;
   const c=cid?DB.clientes.find(x=>x.id===cid):null;
   const v=pillar('cot-veh',DB.vehiculos);
-  const folio='COT-'+String(DB.cotizaciones.length+1).padStart(4,'0');
+  const cotNums=DB.cotizaciones.map(c=>parseInt((c.folio||'').replace('COT-',''))||0);
+  const cotNext=(cotNums.length?Math.max(...cotNums):0)+1;
+  const folio='COT-'+String(cotNext).padStart(4,'0');
   const total=calcTotales('cot').total;
   DB.cotizaciones.unshift({folio,fecha:$('cot-fecha').value,
     clienteId:c?.id||null,clienteNombre:c?c.nombre:cliNombre,
@@ -3873,7 +3968,9 @@ function cotAVenta(folio){
   if(!cot)return;
   if(cot.estado==='Convertida'){toast('Ya fue convertida en venta','warn');return;}
   if(!confirm(`¿Convertir cotización ${folio} en orden de trabajo?`))return;
-  const vFolio='OT-'+String(DB.ordenes.length+1).padStart(4,'0');
+  const otNums2=DB.ordenes.map(o=>parseInt((o.folio||'').replace('OT-',''))||0);
+  const otNext2=(otNums2.length?Math.max(...otNums2):0)+1;
+  const vFolio='OT-'+String(otNext2).padStart(4,'0');
   DB.ordenes.unshift({folio:vFolio,fechaIn:today(),fechaEst:'',
     clienteId:cot.clienteId,clienteNombre:cot.clienteNombre,clienteRut:cot.clienteRut,tel:cot.tel,
     vehiculoId:cot.vehiculoId,patente:cot.patente,marca:cot.marca,modelo:cot.modelo,
@@ -4024,7 +4121,9 @@ function poblarSelsOT(){
   setOTFolio();
 }
 function setOTFolio(){
-  if($('ot-folio'))$('ot-folio').value='OT-'+String(DB.ordenes.length+1).padStart(4,'0');
+  const nums=DB.ordenes.map(o=>parseInt((o.folio||'').replace('OT-',''))||0);
+  const next=(nums.length?Math.max(...nums):0)+1;
+  if($('ot-folio'))$('ot-folio').value='OT-'+String(next).padStart(4,'0');
 }
 function onOTCli(){
   // handled by autocomplete
@@ -4053,7 +4152,9 @@ function guardarOT(){
   const mecs=getMecsFromPicker('ot');
   const km=parseFloat($('ot-km').value)||0;
   if(v&&km>v.km){v.km=km;}
-  const folio=$('ot-folio').value||'OT-'+String(DB.ordenes.length+1).padStart(4,'0');
+  const nums=DB.ordenes.map(o=>parseInt((o.folio||'').replace('OT-',''))||0);
+  const next=(nums.length?Math.max(...nums):0)+1;
+  const folio=$('ot-folio').value||'OT-'+String(next).padStart(4,'0');
   const total=calcTotales('ot').total;
   const docTipo=$('ot-doc-tipo')?.value||'';
   DB.ordenes.unshift({folio,fechaIn:$('ot-fecha-in').value,fechaEst:$('ot-fecha-est').value,
@@ -5737,6 +5838,7 @@ function abrirEditOT(folio){
   // Load existing images
   _editOTImgs=[...(o.imgs||[])];
   renderEditOTImgs();
+  if($('edit-ot-descuento'))$('edit-ot-descuento').value=o.descuento||0;
   renderEditOTItems();
   $('modal-edit-ot').style.display='flex';
   document.body.style.overflow='hidden';
@@ -5826,8 +5928,11 @@ function cerrarEditOT(){
   _editOTFolio=null;_editOTItems=[];_editOTImgs=[];
 }
 function renderEditOTItems(){
-  const total=_editOTItems.reduce((s,i)=>s+i.sub,0);
-  $('edit-ot-total').textContent=fmt(total);
+  const subtotal=_editOTItems.reduce((s,i)=>s+i.sub,0);
+  const descuento=parseFloat($('edit-ot-descuento')?.value)||0;
+  const total=Math.max(0,subtotal-descuento);
+  const elTotal=$('edit-ot-total');
+  if(elTotal)elTotal.innerHTML=descuento>0?`${fmt(total)} <span style="font-size:11px;color:var(--amber);font-weight:400">(-${fmt(descuento)} dto.)</span>`:fmt(total);
   const el=$('edit-ot-items');
   if(!_editOTItems.length){el.innerHTML='<div style="font-size:12px;color:var(--text3);padding:8px 0">Sin ítems — agrega abajo</div>';return;}
   el.innerHTML='<div class="tw"><table><thead><tr><th>Producto</th><th>Cant.</th><th>Unidad</th><th>P.Unit.</th><th class="tr">Subtotal</th><th></th></tr></thead><tbody>'+
@@ -5921,7 +6026,9 @@ function guardarEditOT(){
   o.mecanico=mecs.map(m=>m.nombre).join(' / ');
   o.mecanicos=mecs.map(m=>({id:m.id,nombre:m.nombre}));
   o.items=[..._editOTItems];
-  o.total=_editOTItems.reduce((s,i)=>s+i.sub,0);
+  const descuento=parseFloat($('edit-ot-descuento')?.value)||0;
+  o.descuento=descuento;
+  o.total=Math.max(0,_editOTItems.reduce((s,i)=>s+i.sub,0)-descuento);
   o.imgs=[..._editOTImgs];
   save();renderOTs();renderDashboard();cerrarEditOT();
   toast(`Orden ${_editOTFolio} actualizada — ${fmt(o.total)}`);
