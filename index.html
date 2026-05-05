@@ -4177,6 +4177,30 @@ function guardarOT(){
     docMonto:docTipo?(parseFloat($('ot-doc-monto')?.value)||total):0,
     creado:new Date().toISOString()});
   save();limpiarOT();renderOTs();renderDashboard();
+  // Descontar stock de inventario para ítems con pid (antes de limpiar)
+  const itemsParaStock=[...lines.ot];
+  save();limpiarOT();renderOTs();renderDashboard();
+  let stockWarnings=[];
+  itemsParaStock.forEach(item=>{
+    if(!item.pid)return;
+    const prod=DB.inventario.find(p=>p.id===item.pid);
+    if(!prod)return;
+    if(prod.stock<=0){
+      stockWarnings.push(`${prod.nombre}: sin stock (queda en 0)`);
+    } else {
+      prod.stock=Math.max(0,prod.stock-item.qty);
+      // Historial de movimiento
+      if(!prod.histStock)prod.histStock=[];
+      prod.histStock.push({tipo:'salida',qty:item.qty,motivo:`OT ${folio}`,fecha:today(),creado:new Date().toISOString()});
+      if(prod.smin>0&&prod.stock<=prod.smin){
+        stockWarnings.push(`${prod.nombre}: stock bajo (${prod.stock} ${prod.unidad})`);
+      }
+    }
+  });
+  if(itemsParaStock.some(i=>i.pid))save();
+  if(stockWarnings.length){
+    setTimeout(()=>toast(`⚠ ${stockWarnings.slice(0,2).join(' · ')}${stockWarnings.length>2?' y más...':''}`, 'warn'),500);
+  }
   toast(`Orden ${folio} creada`);
 }
 function limpiarOT(){
